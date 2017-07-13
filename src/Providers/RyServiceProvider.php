@@ -4,6 +4,9 @@ namespace Ry\Shop\Providers;
 
 use Illuminate\Support\ServiceProvider;
 use Illuminate\Routing\Router;
+use Ry\Shop\Shop;
+use Ry\Shop\Console\Commands\ShopSetup;
+use Ry\Shop\Models\OrderInvoice;
 
 class RyServiceProvider extends ServiceProvider
 {
@@ -42,6 +45,11 @@ class RyServiceProvider extends ServiceProvider
     	$this->map();
     	//$kernel = $this->app['Illuminate\Contracts\Http\Kernel'];
     	//$kernel->pushMiddleware('Ry\Facebook\Http\Middleware\Facebook');
+    	
+    	$this->app["router"]->middleware('priced', 'Ry\Shop\Http\Middleware\Priced');
+    	$this->app["router"]->middleware('inshop', 'Ry\Shop\Http\Middleware\InShop');
+    	
+    	app("ryanalytics.slug")->register("invoice", OrderInvoice::class);
     }
 
     /**
@@ -51,6 +59,15 @@ class RyServiceProvider extends ServiceProvider
      */
     public function register()
     {
+    	$this->app->singleton("ryshop", function($app){
+    		return new Shop();
+    	});
+    	
+    	$this->app->singleton("ryshop.command", function($app){
+    		return new ShopSetup();
+    	});
+    	
+    	$this->commands(["ryshop.command"]);
     }
     public function map()
     {    	
