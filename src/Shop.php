@@ -19,7 +19,7 @@ class Shop
 		Configuration::privateKey('4084ef84271168716a7363d8fe5df1e2');
 		
 		$setup["shop"] = [
-				"currency" => Sellable::currency(),
+				//"currency" => Sellable::currency(),
 				"paypal" => [
 						"bttoken" => ClientToken::generate()
 				]
