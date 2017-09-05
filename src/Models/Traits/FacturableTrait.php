@@ -10,12 +10,12 @@ trait FacturableTrait
 		return $this->morphOne("Ry\Shop\Models\Customer", "facturable");
 	}
 	
-	public function hasEnoughMoney(Request $request) {
-		return false;
+	public function hasEnoughMoney(Request $request=null) {
+		return $this->customerAccount->subscriptions->count() > 0;
 	}
 	
 	public function isCustomer() {
-		return $this->customer_account != null;
+		return $this->customerAccount != null;
 	}
 }
 ?>

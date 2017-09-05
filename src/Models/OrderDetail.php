@@ -12,10 +12,6 @@ class OrderDetail extends Model
     	return $this->belongsTo("Ry\Shop\Models\Order", "order_id");
     }
     
-    public function orderInvoice() {
-    	return $this->belongsTo("Ry\Shop\Models\OrderInvoice", "order_invoice_id");
-    }
-    
     public function shop() {
     	return $this->belongsTo("Ry\Shop\Models\Shop", "shop_id");
     }

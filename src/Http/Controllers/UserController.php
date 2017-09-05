@@ -16,7 +16,7 @@ class UserController extends Controller
 		return view("ryshop::historic");
 	}
 	
-	public function customer($ar) {
+	public function customer($ar=[]) {
 		$user = Auth::user();
 		
 		Model::unguard();
@@ -24,10 +24,10 @@ class UserController extends Controller
 		if(!$user->customerAccount) {
 			$user->customerAccount = $user->customerAccount()->create([
 				"shop_id" => Shop::current()->id,
-				"currency_id" => isset($ar["currency"]) ? $ar["currency"]["id"] : Sellable::currency()->id,
+				"currency_id" => isset($ar["id"]) ? $ar["id"] : Sellable::currency()->id,
 				"show_public_prices" => true,
-				"active" => isset($ar["user"]),
-				"is_guest" => !isset($ar["user"])
+				"active" => isset($ar["active"]) ? $ar["active"] : false,
+				"is_guest" => isset($ar["is_guest"]) ? $ar["is_guest"] : true
 			]);
 		}
 		

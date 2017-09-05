@@ -11,8 +11,4 @@ class PricedIntention extends Model
     public function intended() {
     	return $this->morphTo();
     }
-    
-    public function invoice() {
-    	return $this->belongsTo("Ry\Shop\Models\OrderInvoice", "order_invoice_id");
-    }
 }

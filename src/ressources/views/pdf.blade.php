@@ -62,7 +62,7 @@
 			<td class="w3">				
 				<p class="underline">@lang("rycart::overall.to")</p>
 				<p>{{$row->order->cart->customer->owner->name}}<br/>
-				@if($row->order->cart->customer->owner->profile->adresse)
+				@if($row->order->cart->customer->owner->profile && $row->order->cart->customer->owner->profile->adresse)
 				{!! $row->order->cart->customer->owner->profile->completeAddress !!}
 				@endif
 				</p>
@@ -121,15 +121,15 @@
 			<td class="text-right">{{$item->quantity}}</td>
 			<td>{{$item->sellable_name}}</td>
 			<td>{{$item->unit}}</td>
-			<td class="text-right">{{$item->unit_price_tax_incl}}</td>
-			<td class="text-right">{{$item->total_price_tax_incl}}</td>
+			<td class="text-right">{{number_format($item->unit_price_tax_incl, 2, ",", ".")}}</td>
+			<td class="text-right">{{number_format($item->total_price_tax_incl, 2, ",", ".")}}</td>
 		</tr>
 		<?php $i++; ?>
 		@endforeach
 		<tr>
 			<td colspan="3" class=""></td>
 			<td class="text-right"><strong>TOTAL</strong> ({{$row->order->currency->iso_code}})</td>
-			<td class="text-right"><strong>{{$row->total_products}}</strong></td>
+			<td class="text-right"><strong>{{number_format($row->total_products, 2, ",", ".")}}</strong></td>
 		</tr>
 		<tr>
 			<td colspan="3" class=""></td>

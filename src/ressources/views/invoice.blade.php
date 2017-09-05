@@ -35,7 +35,7 @@ function main() {
 		<img alt="{{$row->order->cart->customer->owner->name}}" src="{{$row->order->cart->customer->owner->thumb}}">
 		@endif
 		<p>@lang("rycart::overall.to") <strong>{{$row->order->cart->customer->owner->name}}</strong></p>
-		@if($row->order->cart->customer->owner->profile->adresse)
+		@if($row->order->cart->customer->owner->profile && $row->order->cart->customer->owner->profile->adresse)
 		<div>
 			{!! $row->order->cart->customer->owner->profile->completeAddress !!}
 		</div>
@@ -89,8 +89,8 @@ function main() {
 			<td>{{$item->sellable_name}}</td>
 			<td class="text-right">{{$item->quantity}}</td>
 			<td class="text-center">{{$item->unit}}</td>
-			<td class="text-right">{{$item->unit_price_tax_incl}}</td>
-			<td class="text-right">{{$item->total_price_tax_incl}}</td>
+			<td class="text-right">{{number_format($item->unit_price_tax_incl, 2, ",", ".")}}</td>
+			<td class="text-right">{{number_format($item->total_price_tax_incl, 2, ",", ".")}}</td>
 		</tr>
 		<?php $i++; ?>
 		@endforeach
@@ -99,7 +99,7 @@ function main() {
 		<tr>
 			<td colspan="4" class="no-border-sw"></td>
 			<td class="text-right no-border-sw"><strong>TOTAL</strong> ({{$row->order->currency->iso_code}})</td>
-			<td class="text-right">{{$row->total_products}}</td>
+			<td class="text-right">{{number_format($row->total_products, 2, ",", ".")}}</td>
 		</tr>
 	</tfoot>
 </table>

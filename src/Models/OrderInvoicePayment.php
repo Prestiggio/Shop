@@ -12,8 +12,8 @@ class OrderInvoicePayment extends Model
     	return $this->belongsTo("Ry\Shop\Models\Order", "order_id");
     }
     
-    public function invoice() {
-    	return $this->hasOne("Ry\Shop\Models\OrderInvoice", "order_invoice_id");
+    public function invoices() {
+    	return $this->hasMany("Ry\Shop\Models\OrderInvoice", "order_invoice_id");
     }
     
     public function payment() {
