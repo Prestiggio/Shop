@@ -33,10 +33,6 @@ class Order extends Model
     	return $this->belongsTo("Ry\Shop\Models\Currency", "currency_id");
     }
     
-    public function customer() {
-    	return $this->belongsTo("Ry\Shop\Models\Customer", "customer_id");
-    }
-    
     public function items() {
     	return $this->hasMany("Ry\Shop\Models\OrderDetail", "order_id");
     }

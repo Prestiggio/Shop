@@ -9,12 +9,15 @@ use Ry\Shop\Models\Offer;
 use Ry\Shop\Models\Pack;
 use Ry\Shop\Models\PackItem;
 use Ry\Shop\Models\OrderInvoice;
+use Ry\Shop\Models\OrderPayment;
+use Ry\Shop\Models\Subscription;
 use Illuminate\Database\Eloquent\Model;
+use Carbon\Carbon;
 
 class AdminController extends Controller
 {
-    public function getSellables() {
-    	return view("ryshop::sellables");
+    public function getSellables(Request $request) {
+    	return view("ryshop::sellables", ["rows" => app("\Ry\Shop\Http\Controllers\AdminController")->getAjaxOffres($request)]);
     }
     
     public function getInvoice(Request $request) {
@@ -42,13 +45,36 @@ class AdminController extends Controller
     public function postInvoice(Request $request) {
     	$ar = $request->all();
     	
-    	if(isset($ar["id"]) && doubleVal($ar["total_paid_tax_incl"])>0) {
+    	if(isset($ar["id"])) {
     		Model::unguard();
     		$invoice = OrderInvoice::where("id", "=", $ar["id"])->first();
-    		if($invoice->total_paid_tax_incl < doubleVal($ar["total_paid_tax_incl"])) {
-    			//$invoice->payments()
+    		if(doubleVal($ar["total_paid_tax_incl"])>0) {
+	    		if($invoice->total_paid_tax_incl < doubleVal($ar["total_paid_tax_incl"])) {
+	    			$payment = OrderPayment::create([
+	    				"order_reference" => $invoice->order->reference,
+	    				"currency_id" => $invoice->order->currency_id,
+	    				"amount" => $ar["total_paid_tax_incl"],
+	    				"payment_method" => "admin",
+	    				"conversion_rate" => 1
+	    			]);
+	    			$invoice->payments()->create([
+	    					"order_payment_id" => $payment->id
+	    			]);
+	    			foreach($invoice->order->items as $item) {
+	    				$invoice->order->cart->customer->subscriptions()->create([
+	    					"order_detail_id" => $item->id,
+	    					"pack_item_id" => $item->sellable_id,
+	    					"remainder" => $item->quantity,
+	    					"expiry" => Carbon::now()->addMonth($item->quantity)
+	    				]);
+	    			}
+	    		}
+	    		$invoice->total_paid_tax_incl = doubleVal($ar["total_paid_tax_incl"]);
     		}
-    		$invoice->total_paid_tax_incl = doubleVal($ar["total_paid_tax_incl"]);
+    		if(doubleVal($ar["total_paid_tax_excl"])>0) {
+    			$invoice->total_paid_tax_excl = doubleVal($ar["total_paid_tax_excl"]);
+    		}
+    		$invoice->note = $ar["note"];
     		$invoice->save();
     		Model::reguard();
     	}

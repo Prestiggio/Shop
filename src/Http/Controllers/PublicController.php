@@ -874,7 +874,8 @@ class PublicController extends Controller
 		});
 		
 		return [
-				"redirect" => $invoice->detail_url
+				"redirect" => $invoice->detail_url,
+				"facture_id" => $invoice->id
 		];
 	}
 }

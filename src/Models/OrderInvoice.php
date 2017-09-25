@@ -31,6 +31,6 @@ class OrderInvoice extends Model
     }
     
     public function payments() {
-    	return $this->belongToMany("Ry\Shop\Models\OrderPayment", "ry_shop_order_invoice_payments");
+    	return $this->hasMany("Ry\Shop\Models\OrderInvoicePayment", "order_invoice_id");
     }
 }

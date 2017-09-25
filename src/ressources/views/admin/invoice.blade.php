@@ -1,7 +1,7 @@
-@extends("ryrealestate::layouts.page2")
+@extends("rymd::layouts.page")
 
 @section("main")
-<div layout="row">
+<div layout="row" ng-controller="InvoiceController">
 	<div flex="50" class="md-padding">
 		<md-content class="affix">
 			<table style="width:100%">
@@ -117,32 +117,76 @@
 
 @section("script")
 <script type="text/javascript">
-function main($scope, $http, $window) {
-	$scope.data = {
-		rows : {!!$rows!!},
-		focus : {}
-	};
+(function(angular, $, undefined){
 
-	for(var d in $scope.data.rows) {
-		$scope.data.rows[d].delivery_date = $scope.data.rows[d].delivery_date.toDate();
-	}
+	Date.prototype.toYMD = Date_toYMD;
+    function Date_toYMD() {
+        var year, month, day, hours, minutes, seconds;
+        year = String(this.getFullYear());
+        month = String(this.getMonth() + 1);
+        if (month.length == 1) {
+            month = "0" + month;
+        }
+        day = String(this.getDate());
+        if (day.length == 1) {
+            day = "0" + day;
+        }
+        hours = String(this.getHours());
+        if (hours.length == 1) {
+        	hours = "0" + hours;
+        }
+        minutes = String(this.getMinutes());
+        if (minutes.length == 1) {
+        	minutes = "0" + minutes;
+        }
+        seconds = String(this.getSeconds());
+        if (seconds.length == 1) {
+        	seconds = "0" + seconds;
+        }
+        return year + "-" + month + "-" + day + " " + hours + ":" + minutes + ":" + seconds;
+    };
+    function String2Date() {
+    	var s = this.match(/(\d{4})-(\d{2})-(\d{2})\s(\d{2}):(\d{2}):(\d{2})/);
+    	var d = new Date();
+    	d.setFullYear(s[1]);
+    	d.setMonth(parseInt(s[2])+1);
+    	d.setDate(parseInt(s[3]));
+    	d.setHours(parseInt(s[4]));
+    	d.setMinutes(parseInt(s[5]));
+    	d.setSeconds(parseInt(s[6]));
+    	return d;
+    };
+    String.prototype.toDate = String2Date;
+	
+	angular.module("ngApp").controller("InvoiceController", ["$scope", "$http", "$window", function ($scope, $http, $window) {
+		$scope.data = {
+				rows : {!!$rows!!},
+				focus : {}
+			};
 
-	$scope.reset = function(){
-		$scope.data.focus = {};
-	};
+			for(var d in $scope.data.rows) {
+				$scope.data.rows[d].delivery_date = $scope.data.rows[d].delivery_date.toDate();
+			}
 
-	$scope.submitinvoice = function(){
-		$http.post("{{action("\Ry\Shop\Http\Controllers\AdminController@postInvoice")}}", $scope.data.focus).then(function(){
-			$window.location.reload();
-		});
-	};
+			$scope.reset = function(){
+				$scope.data.focus = {};
+			};
 
-	$scope.deleteinvoice = function(row){
-		$http.delete("{{action("\Ry\Shop\Http\Controllers\AdminController@deleteInvoice")}}", row).then(function(){
-			$window.back();
-		});
-	}
-}
-main.$inject = ["$scope", "$http", "$window"];
+			$scope.submitinvoice = function(){
+				$http.post("{{action("\Ry\Shop\Http\Controllers\AdminController@postInvoice")}}", $scope.data.focus).then(function(){
+					$window.location.reload();
+				});
+			};
+
+			$scope.deleteinvoice = function(row){
+				$http.delete("{{action("\Ry\Shop\Http\Controllers\AdminController@deleteInvoice")}}", row).then(function(){
+					$window.back();
+				});
+			}
+		}]).controller("UserSectionController", function(){
+		
+	});
+	
+})(window.angular, window.jQuery);
 </script>
 @stop

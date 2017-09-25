@@ -1,6 +1,3 @@
-@extends("rymd::layouts.page")
-
-@section("main")
 <style type="text/css">
 .ry-cart-table {
 	width: 100%;
@@ -102,5 +99,3 @@
 @if($row->note!="")
 <div><strong>Notes</strong> : {{$row->note}}</div>
 @endif
-
-@stop

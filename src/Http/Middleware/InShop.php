@@ -6,6 +6,7 @@ use Closure;
 use Ry\Shop\Models\ShopGroup;
 use Ry\Shop\Models\Shop;
 use Illuminate\Database\Eloquent\Model;
+use Auth;
 
 class InShop
 {
@@ -32,7 +33,9 @@ class InShop
     			]);
     		}
     		$shopgroup->shops()->create([
-    				"name" => "Topmora Central Shop"
+    				"name" => "Topmora Central Shop",
+    				"owner_id" => Auth::user()->id,
+    				"active" => true
     		]);
     		Model::reguard();
     	}
