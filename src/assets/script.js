@@ -98,6 +98,13 @@
     			amount += i.cart_amount;
     		}
     		$sessionStorage.cart.amount = amount;
+    		if($sessionStorage.cart.tva && $sessionStorage.cart.tva>0) {
+    			$sessionStorage.cart.tax = parseFloat($sessionStorage.cart.tva) / 100 * parseFloat($sessionStorage.cart.amount);
+    		}
+    		else {
+    			$sessionStorage.cart.tax = 0;
+    		}
+    		$sessionStorage.cart.amountTTC = $sessionStorage.cart.amount + $sessionStorage.cart.tax;
     		return $sessionStorage.cart.amount;
     	};
     	
@@ -115,6 +122,12 @@
 		return function(target){
 			if(target)
 				return target.toString().replace(/\./, ",").replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+			return target;
+		};
+	}).filter("sep1000nodec", function(){
+		return function(target){
+			if(target)
+				return target.toString().replace(/\./, ",").replace(/\B(?=(\d{3})+(?!\d))/g, ".").split(",")[0];
 			return target;
 		};
 	}).directive("rypaypal", ["rypaypal", "$appSetup", "$http", "$window", function(rypaypal, $app, $http, $window){

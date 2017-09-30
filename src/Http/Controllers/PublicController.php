@@ -815,7 +815,8 @@ class PublicController extends Controller
 				$cart_items[] = [
 					"sellable_id" => $s->id,
 					"shop_id" => Shop::current()->id,
-					"quantity" => $request->get("items")[$cart->id]["cart_quantity"]
+					"quantity" => $request->get("items")[$cart->id]["cart_quantity"],
+					"unit" => $cart->period == "mensuel" ? "mois" : null
 				];
 			}
 		}
@@ -857,7 +858,8 @@ class PublicController extends Controller
 					"quantity" => $item->quantity,
 					"price" => $price,
 					"unit_price_tax_incl" => $price,
-					"total_price_tax_incl" => $price * $item->quantity
+					"total_price_tax_incl" => $price * $item->quantity,
+					"unit" => $item->unit
 			];
 			$items[] = $it;
 		}
@@ -870,7 +872,7 @@ class PublicController extends Controller
 				"phone" => $ph
 		], function($message){
 			$message->subject("Demande de paiement");
-			$message->to(env("contact"));
+			$message->to(Auth::user()->email);
 		});
 		
 		return [
