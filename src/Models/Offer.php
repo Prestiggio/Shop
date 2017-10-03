@@ -11,7 +11,7 @@ class Offer extends Model
 	 
 	private $post, $amount, $cart_quantity;
 	
-	protected $appends = ["title", "content", "dprice", "add2cart", "cart_title", "cart_quantity", "cart_amount", "cart_unitprice", "cart_type"];
+	protected $appends = ["title", "content", "dprice", "add2cart", "cart_title", "cart_quantity", "cart_amount", "cart_unitprice", "cart_type", "description"];
 	
 	protected $with = ["packs"];
 	
@@ -37,6 +37,10 @@ class Offer extends Model
 		if(!$this->post)
 			$this->post = app("rywpblog")->post($this->wpblog_url);
 		return $this->post->post_content;
+	}
+	
+	public function getDescriptionAttribute() {
+		return $this->getContentAttribute();
 	}
 	
 	public function getActiveAttribute() {
