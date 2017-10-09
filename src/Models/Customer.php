@@ -3,14 +3,13 @@
 namespace Ry\Shop\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Collection;
 
 class Customer extends Model
 {
     protected $table = "ry_shop_customers";
     
     protected $with = ["subscriptions"];
-    
-    protected $append = ["unlimited"];
     
     public function shop() {
     	return $this->belongsTo("Ry\Shop\Models\Shop", "shop_id");
@@ -36,12 +35,24 @@ class Customer extends Model
     	return $this->hasMany("Ry\Shop\Models\Subscription", "customer_id")->where("remainder", ">", 0);
     }
     
-    public function getUnlimitedAttribute() {
+    public function isSubscribedToAny($offers) {
     	foreach ($this->subscriptions as $subscription) {
-    		if($subscription->packItem->pack->offer->type=="abonnement") {
-    			return true;
+    		foreach ($offers as $offer) {
+    			if($subscription->packItem->pack->offer->id==$offer->id) {
+    				return true;
+    			}
     		}
     	}
     	return false;
+    }
+    
+    public function invoices() {
+    	$invoices = [];
+    	$carts = $this->carts()->orderBy("id", "DESC")->get();
+    	foreach($carts as $cart) {
+    		foreach($cart->order->invoices as $i)
+    			$invoices[] = $i;
+    	}
+    	return new Collection($invoices);
     }
 }

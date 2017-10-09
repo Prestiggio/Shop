@@ -52,21 +52,7 @@
 				 	<div ng-messages="frm_invoice.invoice_total_discounts_tax_excl.$error">
 				 		<div ng-message="required">Vous devez renseigner la totale réduction HT</div>
 				 	</div>
-				</md-input-container>				
-				<md-input-container class="md-block">
-				 	<label>Total payé TTC</label>
-				 	<input type="text" ng-model="data.focus.total_paid_tax_incl" name="invoice_total_paid_tax_incl" required>
-				 	<div ng-messages="frm_invoice.invoice_total_paid_tax_incl.$error">
-				 		<div ng-message="required">Vous devez renseigner le total payé TTC</div>
-				 	</div>
-				</md-input-container>				
-				<md-input-container class="md-block">
-				 	<label>Total payé HT</label>
-				 	<input type="text" ng-model="data.focus.total_paid_tax_excl" name="invoice_total_paid_tax_excl" required>
-				 	<div ng-messages="frm_invoice.invoice_total_paid_tax_excl.$error">
-				 		<div ng-message="required">Vous devez renseigner le total payé HT</div>
-				 	</div>
-				</md-input-container>				
+				</md-input-container>	
 				<md-input-container class="md-block">
 				 	<label>Total</label>
 				 	<input type="text" ng-model="data.focus.total_products" name="invoice_total_products" required>
@@ -109,6 +95,45 @@
 				 		<div ng-message="required">Vous devez renseigner la note</div>
 				 	</div>
 				</md-input-container>
+				<h4>Paiements</h4>
+				<ng-form name="frm_payment" ng-repeat="payment in data.focus.payments" ng-if="!payment.deleted">
+					<md-input-container class="md-block">
+					 	<label>Montant</label>
+					 	<input type="text" ng-model="payment.amount" name="payment_amount" required>
+					 	<div ng-messages="frm_payment.payment_amount.$error">
+					 		<div ng-message="required">Vous devez renseigner le montant du paiement</div>
+					 	</div>
+					</md-input-container>
+					<md-input-container class="md-block">
+					 	<label>Méthode de paiement</label>
+					 	<input type="text" ng-model="payment.payment_method" name="payment_payment_method" required>
+					 	<div ng-messages="frm_payment.payment_payment_method.$error">
+					 		<div ng-message="required">Vous devez renseigner la méthode de paiement</div>
+					 	</div>
+					</md-input-container>
+					<md-input-container class="md-block">
+					 	<label>Code de la transaction</label>
+					 	<input type="text" ng-model="payment.transaction_id" name="payment_transaction_id">
+					</md-input-container>
+					<md-input-container class="md-block">
+					 	<label>Numéro de la carte (si carte)</label>
+					 	<input type="text" ng-model="payment.card_number" name="payment_card_number">
+					</md-input-container>
+					<md-input-container class="md-block">
+					 	<label>Marque de la carte (si carte)</label>
+					 	<input type="text" ng-model="payment.card_brand" name="payment_card_brand">
+					</md-input-container>
+					<md-input-container class="md-block">
+					 	<label>Expiration de la carte (si carte)</label>
+					 	<input type="text" ng-model="payment.card_expiration" name="payment_card_expiration">
+					</md-input-container>
+					<md-input-container class="md-block">
+					 	<label>Propriétaire de la carte (si carte)</label>
+					 	<input type="text" ng-model="payment.card_holder" name="payment_card_holder">
+					</md-input-container>
+					<md-button class="md-accent md-raised" ng-click="cancelPayment($index)">Annuler le paiement</md-button>
+				</ng-form>
+				<md-button class="md-primary md-raised" ng-click="addPayment()">Nouveau paiement</md-button>
 				<md-button type="submit" class="md-raised md-primary" ng-disabled="loading || frm_invoice.$pending">Enregistrer</md-button>
 			</form>
 	</div>
@@ -161,7 +186,9 @@
 	angular.module("ngApp").controller("InvoiceController", ["$scope", "$http", "$window", function ($scope, $http, $window) {
 		$scope.data = {
 				rows : {!!$rows!!},
-				focus : {}
+				focus : {
+					payments : []
+				}
 			};
 
 			for(var d in $scope.data.rows) {
@@ -183,9 +210,21 @@
 					$window.back();
 				});
 			}
+
+			$scope.addPayment = function(){
+				$scope.data.focus.payments.push({});
+			};
+
+			$scope.cancelPayment = function($index){
+				if($scope.data.focus.payments[$index].id)
+					$scope.data.focus.payments[$index].deleted = true;
+				else
+					$scope.data.focus.payments.splice($index, 1);
+			};
+			
 		}]).controller("UserSectionController", function(){
 		
-	});
+		});
 	
 })(window.angular, window.jQuery);
 </script>

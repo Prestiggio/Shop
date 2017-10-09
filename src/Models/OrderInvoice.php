@@ -11,6 +11,8 @@ class OrderInvoice extends Model
 	
     protected $table = "ry_shop_order_invoices";
     
+    protected $with = ["payments"];
+    
     public function order() {
     	return $this->belongsTo("Ry\Shop\Models\Order", "order_id");
     }
@@ -31,6 +33,6 @@ class OrderInvoice extends Model
     }
     
     public function payments() {
-    	return $this->hasMany("Ry\Shop\Models\OrderInvoicePayment", "order_invoice_id");
+    	return $this->belongsToMany("Ry\Shop\Models\OrderPayment", "ry_shop_order_invoice_payments", "order_invoice_id", "order_payment_id");
     }
 }

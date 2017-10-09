@@ -9,10 +9,10 @@ use Ry\Shop\Models\Offer;
 use Ry\Shop\Models\Pack;
 use Ry\Shop\Models\PackItem;
 use Ry\Shop\Models\OrderInvoice;
-use Ry\Shop\Models\OrderPayment;
 use Ry\Shop\Models\Subscription;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
+use Mail;
 
 class AdminController extends Controller
 {
@@ -26,10 +26,6 @@ class AdminController extends Controller
     
     public function getCart(Request $request) {
     	return view("ryshop::cart", ["rows" => Cart::all()]);
-    }
-    
-    public function getTest() {
-    	return Cart::where("id", "=", 8)->first();
     }
     
     public function postCart(Request $request) {
@@ -48,34 +44,68 @@ class AdminController extends Controller
     	if(isset($ar["id"])) {
     		Model::unguard();
     		$invoice = OrderInvoice::where("id", "=", $ar["id"])->first();
-    		if(doubleVal($ar["total_paid_tax_incl"])>0) {
-	    		if($invoice->total_paid_tax_incl < doubleVal($ar["total_paid_tax_incl"])) {
-	    			$payment = OrderPayment::create([
-	    				"order_reference" => $invoice->order->reference,
-	    				"currency_id" => $invoice->order->currency_id,
-	    				"amount" => $ar["total_paid_tax_incl"],
-	    				"payment_method" => "admin",
-	    				"conversion_rate" => 1
-	    			]);
-	    			$invoice->payments()->create([
-	    					"order_payment_id" => $payment->id
-	    			]);
-	    			foreach($invoice->order->items as $item) {
-	    				$invoice->order->cart->customer->subscriptions()->create([
-	    					"order_detail_id" => $item->id,
-	    					"pack_item_id" => $item->sellable_id,
-	    					"remainder" => $item->quantity,
-	    					"expiry" => Carbon::now()->addMonth($item->quantity)
-	    				]);
-	    			}
-	    		}
-	    		$invoice->total_paid_tax_incl = doubleVal($ar["total_paid_tax_incl"]);
+    		
+    		$amount = 0;
+    		$receipt = false;
+    		foreach($ar["payments"] as $payment) {
+    			if(isset($payment["id"]) && $payment["id"]>0) {
+    				$_payment = $invoice->payments()->where("ry_shop_order_payments.id", "=", $payment["id"])->first();
+    				if($_payment) {
+    					if(isset($payment["deleted"]) && $payment["deleted"]) {
+    						$amount -= $payment->amount;
+    						$payment->delete();
+    					}
+    					else {
+    						unset($payment["id"]);
+    						unset($payment["pivot"]);
+    						$_payment->update($payment);
+    					}
+    				}
+    			}
+    			else if($payment["amount"]>0) {
+    				$payment["currency_id"] = $invoice->order->currency_id;
+    				$payment["order_reference"] = "P" . ($invoice->payments->count() + 1) . $invoice->order->reference;
+    				$payment["conversion_rate"] = 1;
+    				$_payment = $invoice->payments()->create($payment);
+    				$receipt = true;
+    			}
+    			$amount+=doubleval($payment["amount"]);
     		}
-    		if(doubleVal($ar["total_paid_tax_excl"])>0) {
-    			$invoice->total_paid_tax_excl = doubleVal($ar["total_paid_tax_excl"]);
+    		
+    		if($invoice->total_products <= $amount) {
+    			foreach($invoice->order->items as $item) {
+    				$invoice->order->cart->customer->subscriptions()->create([
+    					"order_detail_id" => $item->id,
+    					"pack_item_id" => $item->sellable_id,
+    					"remainder" => $item->quantity,
+    					"expiry" => Carbon::now()->addMonth($item->quantity)
+    				]);
+    			}
     		}
+	    	$invoice->total_paid_tax_incl = $amount;
+	    	$invoice->total_paid_tax_excl = $amount;
     		$invoice->note = $ar["note"];
     		$invoice->save();
+    		
+    		if($receipt) {
+    			$user = $invoice->order->cart->customer->owner;
+    			if($invoice->total_products <= $amount)
+    				$template = "ryshop::emails.subscribed";
+    			else 
+    				$template = "ryshop::emails.receipt";
+    			
+    			Mail::send($template, [
+    					"user" => $user,
+    					"invoice" => $invoice,
+    					"payment" => $_payment
+    			], function($message) use ($_payment, $user){
+    				$message->subject(env("COMPANY", "TOPMORA SHOP")." - Facture " . $_payment->order_reference);
+    				$message->to($user->email, $user->companies()->first()->nom);
+    				$message->from(env("contact", "manager@topmora.com"), env("COMPANY", "TOPMORA SHOP"));
+    				$message->bcc(env("contact", "manager@topmora.com"));
+    			});
+    		}
+    		
     		Model::reguard();
     	}
     }

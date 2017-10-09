@@ -9,6 +9,8 @@ class OrderPayment extends Model
 {
     protected $table = "ry_shop_order_payments";
     
+    protected $dates = ["created_at", "updated_at"];
+    
     public function currency() {
     	return $this->belongsTo("Ry\Shop\Models\Currency", "currency_id");
     }

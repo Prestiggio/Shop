@@ -14,7 +14,7 @@ class CreateOrderPaymentsTable extends Migration
     {
         Schema::create('ry_shop_order_payments', function (Blueprint $table) {
             $table->increments('id');
-            $table->char("order_reference", 9);
+            $table->char("order_reference", 25);
             $table->integer("currency_id", false, true);
             $table->decimal("amount", 10, 2);
             $table->char("payment_method");
