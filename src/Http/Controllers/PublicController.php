@@ -865,7 +865,7 @@ class PublicController extends Controller
 		}
 		$order->items()->createMany($items);
 		Model::reguard();
-		Mail::send("ryshop::emails.paymentvalidation", [
+		Mail::send("ryshop::emails.paymentrequest", [
 				"invoice" => $invoice,
 				"user" => Auth::user(),
 				"cart" => $cart,
