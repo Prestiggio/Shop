@@ -873,6 +873,7 @@ class PublicController extends Controller
 		], function($message){
 			$message->subject("Demande de paiement");
 			$message->to(Auth::user()->email);
+			$message->from(env("contact", "manager@topmora.com"), env("COMPANY", "TOPMORA SHOP"));
 		});
 		
 		return [

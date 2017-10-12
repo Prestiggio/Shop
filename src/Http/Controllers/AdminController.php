@@ -21,7 +21,7 @@ class AdminController extends Controller
     }
     
     public function getInvoice(Request $request) {
-    	return view("ryshop::admin.invoice", ["rows" => OrderInvoice::all()]);
+    	return view("ryshop::admin.invoice", ["rows" => OrderInvoice::orderBy("id", "DESC")->get()]);
     }
     
     public function getCart(Request $request) {

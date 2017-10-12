@@ -191,6 +191,8 @@
 				}
 			};
 
+		$scope.loading = false;
+
 			for(var d in $scope.data.rows) {
 				$scope.data.rows[d].delivery_date = $scope.data.rows[d].delivery_date.toDate();
 			}
@@ -200,6 +202,7 @@
 			};
 
 			$scope.submitinvoice = function(){
+				$scope.loading = true;
 				$http.post("{{action("\Ry\Shop\Http\Controllers\AdminController@postInvoice")}}", $scope.data.focus).then(function(){
 					$window.location.reload();
 				});
