@@ -876,6 +876,8 @@ class PublicController extends Controller
 			$message->from(env("contact", "manager@topmora.com"), env("COMPANY", "TOPMORA SHOP"));
 		});
 		
+		Session::forget("cart");
+		
 		return [
 				"redirect" => $invoice->detail_url,
 				"facture_id" => $invoice->id
