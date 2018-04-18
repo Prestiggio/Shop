@@ -209,7 +209,7 @@
 			};
 
 			$scope.deleteinvoice = function(row){
-				$http.delete("{{action("\Ry\Shop\Http\Controllers\AdminController@deleteInvoice")}}", row).then(function(){
+				$http.delete("{{action("\Ry\Shop\Http\Controllers\AdminController@deleteInvoice")}}", {params:{id:row.id}}).then(function(){
 					$window.back();
 				});
 			}

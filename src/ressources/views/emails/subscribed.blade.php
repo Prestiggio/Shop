@@ -2,8 +2,8 @@
 Immeuble ASSIST Ivandry<br/>
 101 Antanananarivo<br/>
 Madagascar</p>
-<p>{{$user->companies()->first()->nom}}<br/>
-{!!$user->companies()->first()->completeAddress!!}
+<p>{{$user->companies()->first()->nom or $user->name}}<br/>
+{!!$user->companies()->first()->completeAddress or $user->completeAddress!!}
 </p>
 
 <p>Le {{$payment->created_at}}</p>

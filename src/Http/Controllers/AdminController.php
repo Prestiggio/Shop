@@ -111,7 +111,7 @@ class AdminController extends Controller
     }
     
     public function deleteInvoice(Request $request) {
-    	 
+		OrderInvoice::where("id", "=", $request->get("id"))->delete();
     }
     
     public function getAjaxOffres(Request $request) {
