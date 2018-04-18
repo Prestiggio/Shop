@@ -39,7 +39,10 @@ class Customer extends Model
     	foreach ($this->subscriptions as $subscription) {
     		foreach ($offers as $offer) {
     			if($subscription->packItem->pack->offer->id==$offer->id) {
-    				return true;
+					if($subscription->packItem->pack->offer->type=='abonnement')
+						return true;
+					if($subscription->remainder > 0)
+						return true;
     			}
     		}
     	}

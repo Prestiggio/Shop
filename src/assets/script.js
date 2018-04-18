@@ -88,7 +88,13 @@
     	this.remove = function(item){
     		delete $sessionStorage.cart.items[item.id];
     		this.total();
-    	};
+		};
+		
+		this.hook_discount = function(total){
+			return {
+				value : 0
+			};
+		};
     	
     	this.total = function(){
     		var amount = 0;
@@ -97,14 +103,16 @@
     			i.cart_amount = parseFloat(i.cart_unitprice ? i.cart_unitprice*i.cart_quantity : 0);
     			amount += i.cart_amount;
     		}
-    		$sessionStorage.cart.amount = amount;
+			$sessionStorage.cart.amount = amount;
+			var discount = this.hook_discount(amount);
     		if($sessionStorage.cart.tva && $sessionStorage.cart.tva>0) {
-    			$sessionStorage.cart.tax = parseFloat($sessionStorage.cart.tva) / 100 * parseFloat($sessionStorage.cart.amount);
+    			$sessionStorage.cart.tax = parseFloat($sessionStorage.cart.tva) / 100 * (parseFloat($sessionStorage.cart.amount) - parseFloat(discount.value));
     		}
     		else {
     			$sessionStorage.cart.tax = 0;
     		}
-    		$sessionStorage.cart.amountTTC = $sessionStorage.cart.amount + $sessionStorage.cart.tax;
+			$sessionStorage.cart.amountTTC = $sessionStorage.cart.amount - parseFloat(discount.value) + $sessionStorage.cart.tax;
+			$sessionStorage.cart.discount = discount;
     		return $sessionStorage.cart.amount;
     	};
     	

@@ -775,7 +775,7 @@ class PublicController extends Controller
 			Recaptcha::check($request);
 		
 		$ar = $request->all();
-		$payment_mode = isset($ar["payment_mode"]) ? $ar["payment_mode"] : "";
+		$payment_mode = isset($ar["payment_mode"]) ? $ar["payment_mode"]["value"] : "";
 		$target_ref = str_random(6);
 		
 		if(Auth::guest()) {
@@ -833,12 +833,17 @@ class PublicController extends Controller
 				"invoice_date" => date("Y-m-d H:i:s"),
 				"shop_id" => Shop::current()->id,
 				"currency_id" => $cart->currency_id,
+				"total_discounts" => $ar["discount"]["value"],
+				"total_discounts_tax_incl" => $ar["discount"]["value"],
+				"total_discounts_tax_excl" => $ar["discount"]["value"],
 				"payment" => $payment_mode,
 				"valid" => true
 		]);
 		$invoice = $order->invoices()->create([
 				"total_products" => $ar["amount"],
 				"total_products_wt" => $ar["amount"],
+				"total_discounts_tax_incl" => $ar["discount"]["value"],
+				"total_discounts_tax_excl" => $ar["discount"]["value"],
 				"total_wrapping_tax_incl" => $ar["amount"],
 				"total_wrapping_tax_excl" => $ar["amount"]
 		]);
