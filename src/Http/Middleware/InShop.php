@@ -21,23 +21,25 @@ class InShop
     {
     	$shop = Shop::where("id", "=", env("SHOP", 1))->first();
     	if(!$shop) {
-    		Model::unguard();
     		$shopgroup = ShopGroup::where("id", "=", 1)->first();
     		if(!$shopgroup) {
+				ShopGroup::unguard();
     			$shopgroup = ShopGroup::create([
     					"name" => "Topmora Group",
     					"share_customer" => true,
     					"share_order" => true,
     					"share_stock" => true,
     					"active" => true
-    			]);
-    		}
+				]);
+				ShopGroup::reguard();
+			}
+			Shop::unguard();
     		$shopgroup->shops()->create([
     				"name" => "Topmora Central Shop",
     				"owner_id" => Auth::user()->id,
     				"active" => true
     		]);
-    		Model::reguard();
+    		Shop::reguard();
     	}
     	Shop::setCurrent($shop);
     	

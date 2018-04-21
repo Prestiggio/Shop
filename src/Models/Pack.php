@@ -8,7 +8,7 @@ class Pack extends Model
 {
     protected $table = "ry_shop_packs";
     
-    protected $with = ["items"];
+    //protected $with = ["items"];
     
     public function offer() {
     	return $this->belongsTo("Ry\Shop\Models\Offer", "offer_id");

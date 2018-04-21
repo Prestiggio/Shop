@@ -10,6 +10,7 @@ use Ry\Shop\Models\Pack;
 use Ry\Shop\Models\PackItem;
 use Ry\Shop\Models\OrderInvoice;
 use Ry\Shop\Models\Subscription;
+use Ry\Shop\Models\OrderInvoicePayment;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
 use Mail;
@@ -21,7 +22,7 @@ class AdminController extends Controller
     }
     
     public function getInvoice(Request $request) {
-    	return view("ryshop::admin.invoice", ["rows" => OrderInvoice::orderBy("id", "DESC")->get()]);
+    	return view("ryshop::admin.invoice", ["rows" => OrderInvoice::with("payments")->orderBy("id", "DESC")->get()]);
     }
     
     public function getCart(Request $request) {
@@ -29,9 +30,7 @@ class AdminController extends Controller
     }
     
     public function postCart(Request $request) {
-    	Model::unguard();
     	
-    	Model::reguard();
     }
     
     public function deleteCart(Request $request) {
@@ -42,11 +41,11 @@ class AdminController extends Controller
     	$ar = $request->all();
     	
     	if(isset($ar["id"])) {
-    		Model::unguard();
     		$invoice = OrderInvoice::where("id", "=", $ar["id"])->first();
     		
     		$amount = 0;
-    		$receipt = false;
+			$receipt = false;
+			OrderInvoicePayment::unguard();
     		foreach($ar["payments"] as $payment) {
     			if(isset($payment["id"]) && $payment["id"]>0) {
     				$_payment = $invoice->payments()->where("ry_shop_order_payments.id", "=", $payment["id"])->first();
@@ -70,9 +69,10 @@ class AdminController extends Controller
     				$receipt = true;
     			}
     			$amount+=doubleval($payment["amount"]);
-    		}
-    		
+			}
+			OrderInvoicePayment::reguard();
     		if($invoice->total_products <= $amount) {
+				Subscription::unguard();
     			foreach($invoice->order->items as $item) {
     				$invoice->order->cart->customer->subscriptions()->create([
     					"order_detail_id" => $item->id,
@@ -80,7 +80,8 @@ class AdminController extends Controller
     					"remainder" => $item->quantity,
     					"expiry" => Carbon::now()->addMonth($item->quantity)
     				]);
-    			}
+				}
+				Subscription::reguard();
     		}
 	    	$invoice->total_paid_tax_incl = $amount;
 	    	$invoice->total_paid_tax_excl = $amount;
@@ -105,8 +106,6 @@ class AdminController extends Controller
     				$message->bcc(env("contact", "manager@topmora.com"));
     			});
     		}
-    		
-    		Model::reguard();
     	}
     }
     
@@ -122,7 +121,6 @@ class AdminController extends Controller
     public function postSubmitOffer(Request $request) {
     	$user = auth()->user();
     	$ar = $request->all();
-    	Model::unguard();
     	$data = [
     			"author_id" => $user->id,
     			"wpblog_url" => $ar["wpblog_url"],
@@ -136,13 +134,15 @@ class AdminController extends Controller
     	if(isset($ar["id"])) {
     		$offer = Offer::where("id", "=", $ar["id"])->first();
     	}
-    
+	
+		Offer::unguard();
     	if(!$offer) {
     		$offer = Offer::create($data);
     	}
     	else {
     		$offer->update($data);
-    	}
+		}
+		Offer::reguard();
     	
     	foreach($ar["packs"] as $pack) {
     		if(isset($pack["deleted"])) {
@@ -158,9 +158,12 @@ class AdminController extends Controller
     		}
     		
     		if(!$p) {
-    			$p = $offer->packs()->create([]);
+				Pack::unguard();
+				$p = $offer->packs()->create([]);
+				Pack::reguard();
     		}
-    		
+			
+			PackItem::unguard();
     		foreach($pack["items"] as $item) {
     			if(isset($item["deleted"])) {
     				if(isset($item["id"]) && $item["id"]>0) {
@@ -185,11 +188,9 @@ class AdminController extends Controller
     			else {
     				$pa->update($data);
     			}
-    		}
-    	}
-    	
-    	Model::reguard();
-    	
+			}
+			PackItem::reguard();
+    	}    	
     	return $offer;
     }
     

@@ -11,7 +11,7 @@ class OrderInvoice extends Model
 	
     protected $table = "ry_shop_order_invoices";
     
-    protected $with = ["payments"];
+    //protected $with = ["payments"];
     
     public function order() {
     	return $this->belongsTo("Ry\Shop\Models\Order", "order_id");

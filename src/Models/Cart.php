@@ -10,7 +10,7 @@ class Cart extends Model
 {
     protected $table = "ry_shop_carts";
     
-    protected $with = ["items", "shop", "deliveryAddress", "invoiceAddress", "currency", "customer"];
+    //protected $with = ["items", "shop", "deliveryAddress", "invoiceAddress", "currency", "customer"];
     
     public function shop() {
     	return $this->belongsTo("Ry\Shop\Models\Shop", "shop_id");

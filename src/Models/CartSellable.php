@@ -8,7 +8,7 @@ class CartSellable extends Model
 {
     protected $table = "ry_shop_cart_sellables";
     
-    protected $with = ["sellable", "deliveryAdresse"];
+    //protected $with = ["sellable", "deliveryAdresse"];
     
     public function cart() {
     	return $this->belongsTo("Ry\Shop\Models\Cart", "cart_id");

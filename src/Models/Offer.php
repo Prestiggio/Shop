@@ -13,7 +13,7 @@ class Offer extends Model
 	
 	protected $appends = ["title", "content", "dprice", "add2cart", "cart_title", "cart_quantity", "cart_amount", "cart_unitprice", "cart_type", "description"];
 	
-	protected $with = ["packs"];
+	//protected $with = ["packs"];
 	
 	public function author() {
 		return $this->belongsTo("App\User", "author_id");

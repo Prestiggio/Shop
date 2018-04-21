@@ -12,7 +12,7 @@ class Subscription extends Model
 	
     protected $table = "ry_shop_subscriptions";
     
-    protected $with = ["packItem"];
+    //protected $with = ["packItem"];
     
     protected $appends = ["expiry_diff"];
     

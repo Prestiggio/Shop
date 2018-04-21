@@ -9,7 +9,7 @@ class Customer extends Model
 {
     protected $table = "ry_shop_customers";
     
-    protected $with = ["subscriptions"];
+    //protected $with = ["subscriptions"];
     
     public function shop() {
     	return $this->belongsTo("Ry\Shop\Models\Shop", "shop_id");

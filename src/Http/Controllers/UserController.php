@@ -7,6 +7,7 @@ use App\Http\Requests;
 use Ry\Shop\Models\Cart;
 use Ry\Shop\Models\Shop;
 use Ry\Shop\Models\Sellable;
+use Ry\Shop\Models\Customer;
 use Auth;
 use Illuminate\Database\Eloquent\Model;
 
@@ -18,10 +19,8 @@ class UserController extends Controller
 	
 	public function customer($ar=[]) {
 		$user = Auth::user();
-		
-		Model::unguard();
-		
 		if(!$user->customerAccount) {
+			Customer::unguard();
 			$user->customerAccount = $user->customerAccount()->create([
 				"shop_id" => Shop::current()->id,
 				"currency_id" => isset($ar["id"]) ? $ar["id"] : Sellable::currency()->id,
@@ -29,10 +28,8 @@ class UserController extends Controller
 				"active" => isset($ar["active"]) ? $ar["active"] : false,
 				"is_guest" => isset($ar["is_guest"]) ? $ar["is_guest"] : true
 			]);
-		}
-		
-		Model::reguard();
-		
+			Customer::reguard();
+		}		
 		return $user->customerAccount;
 	}
 	

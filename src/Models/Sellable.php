@@ -11,7 +11,7 @@ class Sellable extends Model
 {
 	protected $table="ry_shop_sellables";
 	
-	protected $with = ["sellable"];
+	//protected $with = ["sellable"];
 	
 	protected $appends = ["quantity"];
 	
@@ -43,12 +43,12 @@ class Sellable extends Model
 	
 	public static function createdevent($item=null) {
 		if($item) {
-			Model::unguard();
+			self::unguard();
 			self::create([
 					"sellable_id" => $item->id,
 					"sellable_type" => get_class($item)
 			]);
-			Model::reguard();
+			self::reguard();
 		}
 	}
 	

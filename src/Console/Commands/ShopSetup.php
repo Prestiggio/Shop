@@ -43,7 +43,7 @@ class ShopSetup extends Command
      */
     public function handle()
     {
-        Model::unguard();
+
         Currency::create([
         		"name" => "Ariary",
         		"iso_code" => "MGA",
@@ -72,6 +72,5 @@ class ShopSetup extends Command
         		"nom" => env("COMPANY", "TOPMORA SHOP"),
         		"adresse_id" => $adresse->id
         ]);
-        Model::reguard();
     }
 }

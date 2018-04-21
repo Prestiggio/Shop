@@ -10,12 +10,16 @@ use App\User;
 use Ry\Shop\Models\Sellable;
 use Ry\Shop\Models\Shop;
 use Ry\Shop\Models\OrderPayment;
+use Ry\Shop\Models\Order;
+use Ry\Shop\Models\OrderDetail;
 use Ry\Profile\Models\Phone;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Collection;
 use Ry\Shop\Models\OrderInvoice;
 use Ry\Shop\Models\Cart;
+use Ry\Shop\Models\CartSellable;
 use Ry\Shop\Models\Offer;
+use Ry\Profile\Models\Profile;
 
 use Ry\Md\Recaptcha;
 use Ry\Shop\Models\PackItem;
@@ -210,12 +214,14 @@ class PublicController extends Controller
 						]
 				]);
 	
+				Profile::unguard();
 				$tmp->profile()->create([
 						"firstname" => $payment["payer"]["payer_info"]["first_name"],
 						"lastname" => $payment["payer"]["payer_info"]["last_name"],
 						"official" => $tmp->name,
 						"adresse_id" => $adresse->id
 				]);
+				Profile::reguard();
 	
 				$facture = app("\Ry\Cart\Http\Controllers\FactureController")->generate([
 						"amount" => $amounts[$level],
@@ -312,13 +318,17 @@ class PublicController extends Controller
 							$customer = app("\Ry\Shop\Http\Controllers\UserController")->customer([
 									"currency" => $ar["currency"]
 							]);
-							Model::unguard();
+
+							Cart::unguard();
 							$cart = $customer->carts()->create([
 									"shop_id" => Shop::current()->id,
 									"currency_id" => $ar["currency"]["id"]
 							]);
+							Cart::reguard();
+							CartSellable::unguard();
 							$cart->items()->createMany($carts);
-							
+							CartSellable::reguard();
+							Order::unguard();
 							$order = $cart->order()->create([
 								"reference" => sprintf("%03s%06s", Shop::current()->id, $cart->id),
 								"delivery_date" => date("Y-m-d H:i:s"),
@@ -328,12 +338,15 @@ class PublicController extends Controller
 								"payment" => $payment,
 								"valid" => true
 							]);
+							Order::reguard();
+							OrderInvoice::unguard();
 							$invoice = $order->invoices()->create([
 								"total_products" => $ar["amount"],
 								"total_products_wt" => $ar["amount"],
 								"total_wrapping_tax_incl" => $ar["amount"],
 								"total_wrapping_tax_excl" => $ar["amount"]
-							]);							
+							]);		
+							OrderInvoice::reguard();					
 							$items = [];
 							foreach($cart->items as $item) {
 								$it = [
@@ -347,8 +360,10 @@ class PublicController extends Controller
 								];
 								$items[] = $it;
 							}
+							OrderDetail::unguard();
 							$order->items()->createMany($items);
-							Model::reguard();
+							OrderDetail::reguard();
+							
 							Mail::send("ryshop::emails.paymentvalidation", [
 									"invoice" => $invoice,
 									"user" => Auth::user(),
@@ -622,12 +637,14 @@ class PublicController extends Controller
 					]
 			]);
 		
+			Profile::unguard();
 			$tmp->profile()->create([
 					"firstname" => $payment["payer"]["payer_info"]["first_name"],
 					"lastname" => $payment["payer"]["payer_info"]["last_name"],
 					"official" => $tmp->name,
 					"adresse_id" => $adresse->id
 			]);
+			Profile::reguard();
 		
 			$facture = app("\Ry\Cart\Http\Controllers\FactureController")->generate([
 					"amount" => $amounts[$level],
@@ -802,7 +819,6 @@ class PublicController extends Controller
 		$customer = app("\Ry\Shop\Http\Controllers\UserController")->customer([
 				"currency" => $ar["currency"]
 		]);
-		Model::unguard();
 			
 		$cart_items = [];
 		foreach($carts as $cart) {
@@ -821,12 +837,17 @@ class PublicController extends Controller
 			}
 		}
 		
+		Cart::unguard();
 		$cart = $customer->carts()->create([
 				"shop_id" => Shop::current()->id,
 				"currency_id" => $ar["currency"]["id"]
 		]);
+		Cart::reguard();
+		CartSellable::unguard();
 		$cart->items()->createMany($cart_items);
+		CartSellable::reguard();
 		
+		Order::unguard();
 		$order = $cart->order()->create([
 				"reference" => sprintf("%03s%06s", Shop::current()->id, $cart->id),
 				"delivery_date" => date("Y-m-d H:i:s"),
@@ -839,6 +860,8 @@ class PublicController extends Controller
 				"payment" => $payment_mode,
 				"valid" => true
 		]);
+		Order::reguard();
+		OrderInvoice::unguard();
 		$invoice = $order->invoices()->create([
 				"total_products" => $ar["amount"],
 				"total_products_wt" => $ar["amount"],
@@ -847,6 +870,7 @@ class PublicController extends Controller
 				"total_wrapping_tax_incl" => $ar["amount"],
 				"total_wrapping_tax_excl" => $ar["amount"]
 		]);
+		OrderInvoice::reguard();
 		$items = [];
 		foreach($cart->items as $item) {
 			if($item->sellable->sellable instanceof PackItem) {
@@ -868,8 +892,9 @@ class PublicController extends Controller
 			];
 			$items[] = $it;
 		}
+		OrderDetail::unguard();	
 		$order->items()->createMany($items);
-		Model::reguard();
+		OrderDetail::reguard();		
 		Mail::send("ryshop::emails.paymentrequest", [
 				"invoice" => $invoice,
 				"user" => Auth::user(),
