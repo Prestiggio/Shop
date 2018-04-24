@@ -23,6 +23,7 @@ use Ry\Profile\Models\Profile;
 
 use Ry\Md\Recaptcha;
 use Ry\Shop\Models\PackItem;
+use Carbon\Carbon;
 
 class PublicController extends Controller
 {
@@ -331,7 +332,7 @@ class PublicController extends Controller
 							Order::unguard();
 							$order = $cart->order()->create([
 								"reference" => sprintf("%03s%06s", Shop::current()->id, $cart->id),
-								"delivery_date" => date("Y-m-d H:i:s"),
+								"delivery_date" => Carbon::now()->addDays(7),
 								"invoice_date" => date("Y-m-d H:i:s"),
 								"shop_id" => Shop::current()->id,
 								"currency_id" => $cart->currency_id,
@@ -850,7 +851,7 @@ class PublicController extends Controller
 		Order::unguard();
 		$order = $cart->order()->create([
 				"reference" => sprintf("%03s%06s", Shop::current()->id, $cart->id),
-				"delivery_date" => date("Y-m-d H:i:s"),
+				"delivery_date" => Carbon::now()->addDays(7),
 				"invoice_date" => date("Y-m-d H:i:s"),
 				"shop_id" => Shop::current()->id,
 				"currency_id" => $cart->currency_id,

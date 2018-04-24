@@ -7,6 +7,7 @@ use Illuminate\Routing\Router;
 use Ry\Shop\Shop;
 use Ry\Shop\Console\Commands\ShopSetup;
 use Ry\Shop\Models\OrderInvoice;
+use Ry\Shop\Models\Customer;
 use Ry\Shop\Models\Pack;
 use Ry\Shop\Models\PackItem;
 
@@ -51,7 +52,8 @@ class RyServiceProvider extends ServiceProvider
     	$this->app["router"]->middleware('priced', 'Ry\Shop\Http\Middleware\Priced');
     	$this->app["router"]->middleware('inshop', 'Ry\Shop\Http\Middleware\InShop');
     	
-    	app("ryanalytics.slug")->register("invoice", OrderInvoice::class);
+		app("ryanalytics.slug")->register("invoice", OrderInvoice::class);
+		app("ryanalytics.slug")->register("customer", Customer::class);
     	
     	app("ryshop")->sell(PackItem::class);
     }

@@ -4,9 +4,12 @@ namespace Ry\Shop\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Collection;
+use Ry\Analytics\Models\Traits\LinkableTrait;
 
 class Customer extends Model
 {
+	use LinkableTrait;
+
     protected $table = "ry_shop_customers";
     
     //protected $with = ["subscriptions"];
@@ -57,5 +60,12 @@ class Customer extends Model
     			$invoices[] = $i;
     	}
     	return new Collection($invoices);
+	}
+	
+	public function getSlugAttribute() {
+    	if($this->slugs()->exists())
+    		return $this->slugs->slug;
+    	
+    	return str_random(16);
     }
 }
