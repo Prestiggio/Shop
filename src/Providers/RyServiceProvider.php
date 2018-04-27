@@ -10,6 +10,7 @@ use Ry\Shop\Models\OrderInvoice;
 use Ry\Shop\Models\Customer;
 use Ry\Shop\Models\Pack;
 use Ry\Shop\Models\PackItem;
+use Ry\Shop\Console\Commands\ExpiredReminder;
 
 class RyServiceProvider extends ServiceProvider
 {
@@ -71,9 +72,13 @@ class RyServiceProvider extends ServiceProvider
     	
     	$this->app->singleton("ryshop.command", function($app){
     		return new ShopSetup();
-    	});
+		});
+		
+		$this->app->singleton("ryshop.reminder", function($app){
+    		return new ExpiredReminder();
+		});
     	
-    	$this->commands(["ryshop.command"]);
+    	$this->commands(["ryshop.command", "ryshop.reminder"]);
     }
     public function map()
     {    	
