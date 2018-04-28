@@ -19,7 +19,7 @@ class InShop
      */
     public function handle($request, Closure $next)
     {
-    	$shop = Shop::where("id", "=", env("SHOP", 1))->first();
+    	$shop = Shop::where("id", "=", env("SHOPID", 1))->first();
     	if(!$shop) {
     		$shopgroup = ShopGroup::where("id", "=", 1)->first();
     		if(!$shopgroup) {
