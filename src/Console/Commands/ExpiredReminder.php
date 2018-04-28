@@ -51,10 +51,9 @@ class ExpiredReminder extends Command
                 "customer" => $customer,
                 "shop" => Shop::find(1),
             ], function($message) use ($customer){
-                $message->subject(env("COMPANY", "TOPMORA SHOP")." - Renouvellement de vos services");
+                $message->subject(env("SHOP", "TOPMORA SHOP")." - Renouvellement de vos services");
                 $message->to($customer->owner->email, $customer->owner->name);
                 $message->from(env("contact", "manager@topmora.com"), env("COMPANY", "TOPMORA SHOP"));
-                $message->bcc(env("contact", "manager@topmora.com"));
             });
         }
     }

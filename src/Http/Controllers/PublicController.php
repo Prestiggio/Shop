@@ -144,6 +144,7 @@ class PublicController extends Controller
 						], function($message){
 							$message->subject("Nouvelle annonce");
 							$message->to("contact@amelior.mg");
+							$message->from(env("contact", "manager@topmora.com"), env("COMPANY", "TOPMORA SHOP"));
 						});
 							
 						return [
@@ -189,6 +190,7 @@ class PublicController extends Controller
 					], function($message){
 						$message->subject("Nouvelle annonce");
 						$message->to("contact@amelior.mg");
+						$message->from(env("contact", "manager@topmora.com"), env("COMPANY", "TOPMORA SHOP"));
 					});
 	
 					return [
@@ -258,6 +260,7 @@ class PublicController extends Controller
 				], function($message){
 					$message->subject("Nouvelle annonce");
 					$message->to("contact@amelior.mg");
+					$message->from(env("contact", "manager@topmora.com"), env("COMPANY", "TOPMORA SHOP"));
 				});
 				return [
 						"redirect" => '/premium/factures/' . $facture->id
@@ -298,6 +301,7 @@ class PublicController extends Controller
 				], function($message){
 					$message->subject("Nouvelle annonce");
 					$message->to("contact@amelior.mg");
+					$message->from(env("contact", "manager@topmora.com"), env("COMPANY", "TOPMORA SHOP"));
 				});
 					
 				return [
@@ -373,6 +377,7 @@ class PublicController extends Controller
 							], function($message){
 								$message->subject("Demande de paiement");
 								$message->to("contact@amelior.mg");
+								$message->from(env("contact", "manager@topmora.com"), env("COMPANY", "TOPMORA SHOP"));
 							});
 	
 							return [
@@ -419,6 +424,7 @@ class PublicController extends Controller
 					], function($message){
 						$message->subject("Nouvelle annonce");
 						$message->to("contact@amelior.mg");
+						$message->from(env("contact", "manager@topmora.com"), env("COMPANY", "TOPMORA SHOP"));
 					});
 	
 					return [
@@ -465,6 +471,7 @@ class PublicController extends Controller
 				], function($message){
 					$message->subject("Nouvelle annonce");
 					$message->to("contact@amelior.mg");
+					$message->from(env("contact", "manager@topmora.com"), env("COMPANY", "TOPMORA SHOP"));
 				});
 				return [
 						"redirect" => '/premium/factures/' . $facture->id
@@ -505,6 +512,7 @@ class PublicController extends Controller
 				], function($message){
 					$message->subject("Nouvelle annonce");
 					$message->to("contact@amelior.mg");
+					$message->from(env("contact", "manager@topmora.com"), env("COMPANY", "TOPMORA SHOP"));
 				});
 					
 				return [
@@ -567,6 +575,7 @@ class PublicController extends Controller
 					], function($message){
 						$message->subject("Nouvelle annonce");
 						$message->to("contact@amelior.mg");
+						$message->from(env("contact", "manager@topmora.com"), env("COMPANY", "TOPMORA SHOP"));
 					});
 						
 					return [
@@ -612,6 +621,7 @@ class PublicController extends Controller
 				], function($message){
 					$message->subject("Nouvelle annonce");
 					$message->to("contact@amelior.mg");
+					$message->from(env("contact", "manager@topmora.com"), env("COMPANY", "TOPMORA SHOP"));
 				});
 		
 				return [
@@ -681,6 +691,7 @@ class PublicController extends Controller
 			], function($message){
 				$message->subject("Nouvelle annonce");
 				$message->to("contact@amelior.mg");
+				$message->from(env("contact", "manager@topmora.com"), env("COMPANY", "TOPMORA SHOP"));
 			});
 			return [
 					"redirect" => '/premium/factures/' . $facture->id
@@ -721,6 +732,7 @@ class PublicController extends Controller
 			], function($message){
 				$message->subject("Nouvelle annonce");
 				$message->to("contact@amelior.mg");
+				$message->from(env("contact", "manager@topmora.com"), env("COMPANY", "TOPMORA SHOP"));
 			});
 				
 			return [
@@ -776,6 +788,7 @@ class PublicController extends Controller
 			], function($message){
 				$message->subject("Nouvelle annonce");
 				$message->to("contact@amelior.mg");
+				$message->from(env("contact", "manager@topmora.com"), env("COMPANY", "TOPMORA SHOP"));
 			});
 		
 			return [

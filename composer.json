@@ -13,5 +13,13 @@
             "Ry\\Shop\\": "src/"
         }
     },
-    "require": {}
+    "require": {
+        "ry/geo": "dev-prefixed"
+    },
+    "repositories": [
+		{
+	        "type": "vcs",
+	        "url": "git@topmora.com:/opt/git/modules/ry/geo.git"
+        }
+    ]
 }

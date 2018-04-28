@@ -22,7 +22,7 @@ class AdminController extends Controller
     }
     
     public function getInvoice(Request $request) {
-    	return view("ryshop::admin.invoice", ["rows" => OrderInvoice::with("payments")->orderBy("id", "DESC")->get()]);
+    	return view("ryshop::admin.invoice", ["rows" => OrderInvoice::with("payments", "order.cart.customer.facturable")->orderBy("id", "DESC")->get()]);
     }
     
     public function getCart(Request $request) {
@@ -100,10 +100,9 @@ class AdminController extends Controller
     					"invoice" => $invoice,
     					"payment" => $_payment
     			], function($message) use ($_payment, $user){
-    				$message->subject(env("COMPANY", "TOPMORA SHOP")." - Facture " . $_payment->order_reference);
+    				$message->subject(env("SHOP", "TOPMORA SHOP")." - Facture " . $_payment->order_reference);
     				$message->to($user->email, $user->companies()->first()->nom);
-    				$message->from(env("contact", "manager@topmora.com"), env("COMPANY", "TOPMORA SHOP"));
-    				$message->bcc(env("contact", "manager@topmora.com"));
+    				$message->from(env("contact", "manager@topmora.com"), env("SHOP", "TOPMORA SHOP"));
     			});
     		}
     	}

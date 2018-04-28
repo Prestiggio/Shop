@@ -4,22 +4,18 @@
 <div layout="row" ng-controller="InvoiceController">
 	<div flex="50" class="md-padding">
 		<md-content class="affix">
-			<table style="width:100%">
+			<table style="width:100%" class="table table-bordered">
 			  <tr>    
-	    			<th>id</th>    
-	    			<th>id commande</th>        
+	    			<th>réference</th>       
+					<th>client</th>
 	    			<th>total payé TTC</th>    
-	    			<th>total payé HT</th>    
-	    			<th>total</th>    
 	    			<th>total TTC</th>
 			  </tr>
 			  <tbody ng-repeat="row in data.rows">
-			 	<tr>  	
-	    			<td>@{{row.id}}</td>  	
-	    			<td>@{{row.order_id}}</td>  	
-	    			<td>@{{row.total_paid_tax_incl}}</td>  	
-	    			<td>@{{row.total_paid_tax_excl}}</td>  	
-	    			<td>@{{row.total_products}}</td>  	
+			 	<tr> 	
+	    			<td>@{{row.order.reference}}</td>
+					<td>@{{row.order.cart.customer.facturable.name}}</td>  	
+	    			<td>@{{row.total_paid_tax_incl}}</td>
 	    			<td>@{{row.total_products_wt}}</td>
 			 	</tr>
 			 	<tr>
