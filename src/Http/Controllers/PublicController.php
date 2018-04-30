@@ -913,7 +913,8 @@ class PublicController extends Controller
 				"invoice" => $invoice,
 				"user" => Auth::user(),
 				"cart" => $cart,
-				"phone" => $ph
+				"phone" => $ph,
+				"shop" => Shop::current()
 		], function($message){
 			$message->subject("Demande de paiement");
 			$message->to(Auth::user()->email);

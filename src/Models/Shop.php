@@ -4,10 +4,12 @@ namespace Ry\Shop\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Ry\Medias\Models\Traits\MediableTrait;
+use Ry\Geo\Models\Traits\Geoable;
+use Ry\Profile\Models\Traits\JoinableTrait;
 
 class Shop extends Model
 {
-	use MediableTrait;
+	use MediableTrait, Geoable, JoinableTrait;
 	
 	private static $instance;
 	

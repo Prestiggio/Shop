@@ -1,7 +1,5 @@
-<p>L'Officiel des Appels d'Offre OAO<br/>
-Immeuble ASSIST Ivandry<br/>
-101 Antanananarivo<br/>
-Madagascar</p>
+<p>{{env("SHOP")}}</p>
+{!!$shop->completeAddress!!}
 <p>{{$user->companies()->first()->nom}}<br/>
 {!!$user->companies()->first()->completeAddress!!}
 </p>
@@ -13,6 +11,6 @@ Madagascar</p>
 <p>Pour la version pdf</p>
 <p><a href="{{action("\Ry\Appeldoffres\Http\Controllers\UserController@download", ["invoice" => $invoice])}}">{{action("\Ry\Appeldoffres\Http\Controllers\UserController@download", ["invoice" => $invoice])}}</a></p>
 <p>Cordialement</p>
-<p>Votre Service Client OAO<br/>
+<p>Votre Service Client {{env("SHOP")}}<br/>
 Lun - Vend : 08h - 20h | Samedi : 09h - 17h<br/>
-034 96 545 54</p>
+{!!$shop->completeContacts!!}</p>
