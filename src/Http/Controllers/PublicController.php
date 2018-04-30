@@ -27,6 +27,12 @@ use Carbon\Carbon;
 
 class PublicController extends Controller
 {
+	public function __construct() {
+		$this->middleware("inshop", [
+			'only' => ['presubmit', 'postMode', 'postMobileCheckout', 'postMemberCheckout', 'postPaypalCheckout']
+		]);
+	}
+
 	public function sell($sellable, $successIntent) {
 		$sid = Sellable::where("sellable_id", "=", $sellable->id)->where("sellable_type", "=", get_class($sellable))->first();
 		if(!$sid) {
@@ -140,7 +146,8 @@ class PublicController extends Controller
 								"level" => $level,
 								"phone" => $phone,
 								"payment" => print_r($payment, true),
-								"facture" => $facture->id
+								"facture" => $facture->id,
+								"shop" => Shop::current()
 						], function($message){
 							$message->subject("Nouvelle annonce");
 							$message->to("contact@amelior.mg");
@@ -186,7 +193,8 @@ class PublicController extends Controller
 							"level" => $level,
 							"payment" => print_r($payment, true),
 							"phone" => $phone,
-							"facture" => $facture->id
+							"facture" => $facture->id,
+							"shop" => Shop::current()
 					], function($message){
 						$message->subject("Nouvelle annonce");
 						$message->to("contact@amelior.mg");
@@ -256,7 +264,8 @@ class PublicController extends Controller
 						"level" => $level,
 						"payment" => print_r($payment, true),
 						"phone" => "",
-						"facture" => $facture->id
+						"facture" => $facture->id,
+						"shop" => Shop::current()
 				], function($message){
 					$message->subject("Nouvelle annonce");
 					$message->to("contact@amelior.mg");
@@ -297,7 +306,8 @@ class PublicController extends Controller
 						"level" => $level,
 						"payment" => print_r($payment, true),
 						"phone" => "",
-						"facture" => $facture->id
+						"facture" => $facture->id,
+						"shop" => Shop::current()
 				], function($message){
 					$message->subject("Nouvelle annonce");
 					$message->to("contact@amelior.mg");
@@ -373,7 +383,8 @@ class PublicController extends Controller
 									"invoice" => $invoice,
 									"user" => Auth::user(),
 									"cart" => $cart,
-									"phone" => $phone
+									"phone" => $phone,
+									"shop" => Shop::current()
 							], function($message){
 								$message->subject("Demande de paiement");
 								$message->to("contact@amelior.mg");
@@ -420,7 +431,8 @@ class PublicController extends Controller
 							"level" => $level,
 							"payment" => $payment. " - " . $target_ref,
 							"phone" => $phone,
-							"facture" => $facture->id
+							"facture" => $facture->id,
+							"shop" => Shop::current()
 					], function($message){
 						$message->subject("Nouvelle annonce");
 						$message->to("contact@amelior.mg");
@@ -467,7 +479,8 @@ class PublicController extends Controller
 						"level" => $level,
 						"payment" => $payment. " - " . $target_ref,
 						"phone" => $phone,
-						"facture" => $facture->id
+						"facture" => $facture->id,
+						"shop" => Shop::current()
 				], function($message){
 					$message->subject("Nouvelle annonce");
 					$message->to("contact@amelior.mg");
@@ -508,7 +521,8 @@ class PublicController extends Controller
 						"level" => $level,
 						"payment" => $payment. " - " . $target_ref,
 						"phone" => $phone,
-						"facture" => $facture->id
+						"facture" => $facture->id,
+						"shop" => Shop::current()
 				], function($message){
 					$message->subject("Nouvelle annonce");
 					$message->to("contact@amelior.mg");
@@ -571,7 +585,8 @@ class PublicController extends Controller
 							"level" => $level,
 							"phone" => $phone,
 							"payment" => print_r($payment, true),
-							"facture" => $facture->id
+							"facture" => $facture->id,
+							"shop" => Shop::current()
 					], function($message){
 						$message->subject("Nouvelle annonce");
 						$message->to("contact@amelior.mg");
@@ -617,7 +632,8 @@ class PublicController extends Controller
 						"level" => $level,
 						"payment" => print_r($payment, true),
 						"phone" => $phone,
-						"facture" => $facture->id
+						"facture" => $facture->id,
+						"shop" => Shop::current()
 				], function($message){
 					$message->subject("Nouvelle annonce");
 					$message->to("contact@amelior.mg");
@@ -687,7 +703,8 @@ class PublicController extends Controller
 					"level" => $level,
 					"payment" => print_r($payment, true),
 					"phone" => "",
-					"facture" => $facture->id
+					"facture" => $facture->id,
+					"shop" => Shop::current()
 			], function($message){
 				$message->subject("Nouvelle annonce");
 				$message->to("contact@amelior.mg");
@@ -728,7 +745,8 @@ class PublicController extends Controller
 					"level" => $level,
 					"payment" => print_r($payment, true),
 					"phone" => "",
-					"facture" => $facture->id
+					"facture" => $facture->id,
+					"shop" => Shop::current()
 			], function($message){
 				$message->subject("Nouvelle annonce");
 				$message->to("contact@amelior.mg");
@@ -784,7 +802,8 @@ class PublicController extends Controller
 					"level" => $level,
 					"payment" => $payment. " - " . $target_ref,
 					"phone" => $phone,
-					"facture" => $facture->id
+					"facture" => $facture->id,
+					"shop" => Shop::current()
 			], function($message){
 				$message->subject("Nouvelle annonce");
 				$message->to("contact@amelior.mg");

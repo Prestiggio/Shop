@@ -13,10 +13,17 @@ use Ry\Shop\Models\Subscription;
 use Ry\Shop\Models\OrderInvoicePayment;
 use Illuminate\Database\Eloquent\Model;
 use Carbon\Carbon;
+use Ry\Shop\Models\Shop;
 use Mail;
 
 class AdminController extends Controller
 {
+	public function __construct() {
+		$this->middleware("inshop", [
+			'only' => ['postInvoice']
+		]);
+	}
+
     public function getSellables(Request $request) {
     	return view("ryshop::sellables", ["rows" => app("\Ry\Shop\Http\Controllers\AdminController")->getAjaxOffres($request)]);
     }
@@ -98,7 +105,8 @@ class AdminController extends Controller
     			Mail::send($template, [
     					"user" => $user,
     					"invoice" => $invoice,
-    					"payment" => $_payment
+						"payment" => $_payment,
+						"shop" => Shop::current()
     			], function($message) use ($_payment, $user){
     				$message->subject(env("SHOP", "TOPMORA SHOP")." - Facture " . $_payment->order_reference);
     				$message->to($user->email, $user->companies()->first()->nom);
