@@ -16,7 +16,7 @@
 	    			<td>@{{row.order.reference}}</td>
 					<td>@{{row.order.cart.customer.facturable.name}}</td>  	
 	    			<td>@{{row.total_paid_tax_incl}}</td>
-	    			<td>@{{row.total_products_wt}}</td>
+	    			<td>@{{row.total_wrapping_tax_incl}}</td>
 			 	</tr>
 			 	<tr>
 			    	<td colspan="6" class="text-right">

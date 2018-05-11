@@ -355,11 +355,14 @@ class PublicController extends Controller
 							]);
 							Order::reguard();
 							OrderInvoice::unguard();
+							$discount = isset($ar["discount"]["value"]) ? $ar["discount"]["value"] : 0;
 							$invoice = $order->invoices()->create([
 								"total_products" => $ar["amount"],
 								"total_products_wt" => $ar["amount"],
-								"total_wrapping_tax_incl" => $ar["amount"],
-								"total_wrapping_tax_excl" => $ar["amount"]
+								"total_discounts_tax_incl" => $discount,
+								"total_discounts_tax_excl" => $discount,
+								"total_wrapping_tax_incl" => doubleval($ar["amount"]) - doubleval($discount),
+								"total_wrapping_tax_excl" => doubleval($ar["amount"]) - doubleval($discount)
 							]);		
 							OrderInvoice::reguard();					
 							$items = [];
@@ -881,15 +884,16 @@ class PublicController extends Controller
 		CartSellable::reguard();
 		
 		Order::unguard();
+		$discount = isset($ar["discount"]["value"]) ? $ar["discount"]["value"] : 0;
 		$order = $cart->order()->create([
 				"reference" => sprintf("%03s%06s", Shop::current()->id, $cart->id),
 				"delivery_date" => Carbon::now()->addDays(7),
 				"invoice_date" => date("Y-m-d H:i:s"),
 				"shop_id" => Shop::current()->id,
 				"currency_id" => $cart->currency_id,
-				"total_discounts" => $ar["discount"]["value"],
-				"total_discounts_tax_incl" => $ar["discount"]["value"],
-				"total_discounts_tax_excl" => $ar["discount"]["value"],
+				"total_discounts" => $discount,
+				"total_discounts_tax_incl" => $discount,
+				"total_discounts_tax_excl" => $discount,
 				"payment" => $payment_mode,
 				"valid" => true
 		]);
@@ -898,10 +902,10 @@ class PublicController extends Controller
 		$invoice = $order->invoices()->create([
 				"total_products" => $ar["amount"],
 				"total_products_wt" => $ar["amount"],
-				"total_discounts_tax_incl" => $ar["discount"]["value"],
-				"total_discounts_tax_excl" => $ar["discount"]["value"],
-				"total_wrapping_tax_incl" => $ar["amount"],
-				"total_wrapping_tax_excl" => $ar["amount"]
+				"total_discounts_tax_incl" => $discount,
+				"total_discounts_tax_excl" => $discount,
+				"total_wrapping_tax_incl" => doubleval($ar["amount"]) - doubleval($discount),
+				"total_wrapping_tax_excl" => doubleval($ar["amount"]) - doubleval($discount)
 		]);
 		OrderInvoice::reguard();
 		$items = [];

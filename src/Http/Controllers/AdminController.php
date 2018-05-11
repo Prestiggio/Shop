@@ -78,7 +78,7 @@ class AdminController extends Controller
     			$amount+=doubleval($payment["amount"]);
 			}
 			OrderInvoicePayment::reguard();
-    		if($invoice->total_products <= $amount) {
+    		if($invoice->total_wrapping_tax_incl <= $amount) {
 				Subscription::unguard();
     			foreach($invoice->order->items as $item) {
     				$invoice->order->cart->customer->subscriptions()->create([
@@ -97,7 +97,7 @@ class AdminController extends Controller
     		
     		if($receipt) {
     			$user = $invoice->order->cart->customer->owner;
-    			if($invoice->total_products <= $amount)
+    			if($invoice->total_wrapping_tax_incl <= $amount)
     				$template = "ryshop::emails.subscribed";
     			else 
     				$template = "ryshop::emails.receipt";
