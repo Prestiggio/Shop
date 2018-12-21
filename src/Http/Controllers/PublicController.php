@@ -32,6 +32,11 @@ class PublicController extends Controller
 			'only' => ['presubmit', 'postMode', 'postMobileCheckout', 'postMemberCheckout', 'postPaypalCheckout']
 		]);
 	}
+	
+	public function controller_action($action, Request $request) {
+	    $method_name = $request->getMethod() . camel_case($action);
+	    return $this->$method_name($request);
+	}
 
 	public function sell($sellable, $successIntent) {
 		$sid = Sellable::where("sellable_id", "=", $sellable->id)->where("sellable_type", "=", get_class($sellable))->first();

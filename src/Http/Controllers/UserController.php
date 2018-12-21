@@ -17,6 +17,11 @@ class UserController extends Controller
 		return view("ryshop::historic");
 	}
 	
+	public function controller_action($action, Request $request) {
+	    $method_name = $request->getMethod() . camel_case($action);
+	    return $this->$method_name($request);
+	}
+	
 	public function customer($ar=[]) {
 		$user = Auth::user();
 		if(!$user->customerAccount) {

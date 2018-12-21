@@ -204,4 +204,9 @@ class AdminController extends Controller
     public function postDeleteOffer(Request $request) {
     	Offer::where("id", "=", $request->get("id"))->delete();
     }
+    
+    public function controller_action($action, Request $request) {
+        $method_name = $request->getMethod() . camel_case($action);
+        return $this->$method_name($request);
+    }
 }
