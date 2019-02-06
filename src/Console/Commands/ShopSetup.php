@@ -45,8 +45,9 @@ class ShopSetup extends Command
     {
 
         Currency::create([
-        		"name" => "Ariary",
-        		"iso_code" => "MGA",
+        		"name" => $this->ask("Nom de la devise ?"),
+        		"iso_code" => $this->ask("Code iso (3 caractères majuscule) de la devise"),
+                "symbol" => $this->ask("Symbole de la devise"),
         		"conversion_rate" => 1
         ]);
         $admin = Role::where("name", "=", "admin");
@@ -57,19 +58,19 @@ class ShopSetup extends Command
         	$user = User::first();
         }
         $adresse = app("\Ry\Geo\Http\Controllers\PublicController")->generate([
-        		"raw" => env("COMPANY_ADRESSE", "LOT IBK 44 Bis Ampasamadinika"),
+        		"raw" => $this->ask("Adresse de la société"),
         		"ville" => [
-        				"nom" => env("COMPANY_VILLE", "Antananarivo"),
-        				"cp" => env("COMPANY_CP", 101),
+        				"nom" => $this->ask("Nom de la ville"),
+        				"cp" => $this->ask("Code postal"),
         				"country" => [
-        						"nom" => env("COMPANY_COUNTRY", "Madagascar")
+        						"nom" => $this->ask("Pays")
         				]
         		]
         ]);
         Shop::where("id", "=", 1)->first()->owner->companies()->create([
         		"editor_id" => $user->id,
         		"editor_post" => "owner",
-        		"nom" => env("COMPANY", "TOPMORA SHOP"),
+        		"nom" => $this->ask("Nom de l'entreprise"),
         		"adresse_id" => $adresse->id
         ]);
     }
