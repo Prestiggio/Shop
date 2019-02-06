@@ -1,7 +1,7 @@
 <?php 
 namespace Ry\Shop\Models\Traits;
 
-trait HasBankAccount
+trait HasBankAccounts
 {
     
 }
