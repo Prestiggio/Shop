@@ -1,5 +1,5 @@
 <?php 
-namespace Ry\Shop\Traits;
+namespace Ry\Shop\Models\Traits;
 
 trait HasBankAccount
 {
