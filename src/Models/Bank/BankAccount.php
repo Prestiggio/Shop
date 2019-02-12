@@ -10,11 +10,23 @@ class BankAccount extends Model
     
     protected $fillable = ["setup", "bank_id", "currency_id"];
     
+    protected $appends = ["nsetup"];
+    
     public function bankable() {
         return $this->morphTo();
     }
     
     public function bank() {
         return $this->belongsTo(Bank::class, "bank_id");
+    }
+    
+    public function getNsetupAttribute() {
+        if($this->setup)
+            return json_decode($this->setup, true);
+        return [];
+    }
+    
+    public function setNsetupAttribute($ar) {
+        $this->setup = json_encode($ar);
     }
 }
