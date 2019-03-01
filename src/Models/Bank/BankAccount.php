@@ -3,9 +3,12 @@
 namespace Ry\Shop\Models\Bank;
 
 use Illuminate\Database\Eloquent\Model;
+use Ry\Admin\Models\Traits\HasJsonSetup;
 
 class BankAccount extends Model
 {
+    use HasJsonSetup;
+    
     protected $table = "ry_shop_bank_accounts";
     
     protected $fillable = ["setup", "bank_id", "currency_id"];
@@ -18,15 +21,5 @@ class BankAccount extends Model
     
     public function bank() {
         return $this->belongsTo(Bank::class, "bank_id");
-    }
-    
-    public function getNsetupAttribute() {
-        if($this->setup)
-            return json_decode($this->setup, true);
-        return [];
-    }
-    
-    public function setNsetupAttribute($ar) {
-        $this->setup = json_encode($ar);
     }
 }

@@ -3,9 +3,12 @@
 namespace Ry\Shop\Models\Price;
 
 use Illuminate\Database\Eloquent\Model;
+use Ry\Admin\Models\Traits\HasJsonSetup;
 
 class Price extends Model
 {
+    use HasJsonSetup;
+    
     protected $table = "ry_shop_prices";
     
     protected $fillable = ["price", "currency_id", "prefix", "suffix"];
@@ -21,9 +24,5 @@ class Price extends Model
             'period' => 'monthly',
             'mode' => ''
         ];
-    }
-    
-    public function setNsetupAttribute($ar) {
-        $this->setup = json_encode($ar);
     }
 }

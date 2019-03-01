@@ -45,12 +45,12 @@ class ShopSetup extends Command
     {
 
         Currency::create([
-        		"name" => $this->ask("Nom de la devise ?"),
-        		"iso_code" => $this->ask("Code iso (3 caractères majuscule) de la devise"),
+        		"name" => $this->ask("Nom de la devise ?", "Euro européen"),
+        		"iso_code" => $this->ask("Code iso (3 caractères majuscule) de la devise", "EUR"),
                 "symbol" => $this->ask("Symbole de la devise"),
         		"conversion_rate" => 1
         ]);
-        $admin = Role::where("name", "=", "admin");
+        /*$admin = Role::where("name", "=", "admin");
         if($admin->exists()) {
         	$user = $admin->first()->user;
         }
@@ -72,6 +72,6 @@ class ShopSetup extends Command
         		"editor_post" => "owner",
         		"nom" => $this->ask("Nom de l'entreprise"),
         		"adresse_id" => $adresse->id
-        ]);
+        ]);*/
     }
 }
