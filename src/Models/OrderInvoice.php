@@ -33,6 +33,14 @@ class OrderInvoice extends Model
     }
     
     public function payments() {
-    	return $this->belongsToMany("Ry\Shop\Models\OrderPayment", "ry_shop_order_invoice_payments", "order_invoice_id", "order_payment_id");
+    	return $this->belongsToMany(Payment::class, "ry_shop_order_invoice_payments", "order_invoice_id", "order_payment_id");
+    }
+    
+    public function buyer() {
+        return $this->morphTo();
+    }
+    
+    public function seller() {
+        return $this->morphTo();
     }
 }

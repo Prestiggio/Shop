@@ -3,38 +3,32 @@
 namespace Ry\Shop\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\SoftDeletes;
+use Ry\Admin\Models\Traits\HasJsonSetup;
 
 class Order extends Model
 {
-	use SoftDeletes;
-	
-    protected $table = "ry_shop_orders";
+    use HasJsonSetup;
     
-    protected $dates = ["delivery_date", "invoice_date", "deleted_at"];
+    protected $table = "ry_shop_orders";
     
     public function cart() {
     	return $this->belongsTo("Ry\Shop\Models\Cart", "cart_id");
     }
     
     public function shop() {
-    	return $this->belongsTo("Ry\Shop\Models\Shop", "shop_id");
+        return $this->belongsTo(Shop::class, "shop_id");
     }
     
-    public function deliveryAdresse() {
-    	return $this->belongsTo("Ry\Geo\Models\Adresse", "delivery_adresse_id");
+    public function buyer() {
+    	return $this->morphTo();
     }
     
-    public function invoiceAdresse() {
-    	return $this->belongsTo("Ry\Geo\Models\Adresse", "invoice_adresse_id");
-    }
-    
-    public function currency() {
-    	return $this->belongsTo("Ry\Shop\Models\Currency", "currency_id");
+    public function seller() {
+        return $this->morphTo();
     }
     
     public function items() {
-    	return $this->hasMany("Ry\Shop\Models\OrderDetail", "order_id");
+    	return $this->hasMany(OrderItem::class, "order_id");
     }
     
     public function invoices() {
