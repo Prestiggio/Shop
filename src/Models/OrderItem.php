@@ -11,7 +11,7 @@ class OrderItem extends Model
     
     protected $table = "ry_shop_order_items";
     
-    protected $fillable = ["sellable_type", "sellable_id", "quantity", "price", "setup"];
+    protected $fillable = ["sellable_type", "sellable_id", "quantity", "price", "setup", "created_at"];
     
     public function order() {
     	return $this->belongsTo("Ry\Shop\Models\Order", "order_id");
