@@ -49,7 +49,7 @@ class Order extends Model
     
     public static function prettySubtotal($year) {
         $subtotal = self::subtotal($year);
-        return app(SiteScope::class)->prettyCurrency($subtotal->sum_subtotal);
+        return app("centrale")->prettyCurrency($subtotal->sum_subtotal);
     }
     
     public static function quantityByMonth($year) {
@@ -70,7 +70,7 @@ class Order extends Model
     
     public static function prettyTotalMonth($year) {
         $total = static::whereRaw("YEAR(created_at) = :year AND MONTH(created_at) = MONTH(CURRENT_DATE())", ["year" => $year])->selectRaw("SUM(setup->'$.subtotal') AS sum_subtotal")->first()->sum_subtotal;
-        return app(SiteScope::class)->prettyCurrency($total);
+        return app("centrale")->prettyCurrency($total);
     }
     
     public static function subtotalByDay($year) {
@@ -83,6 +83,6 @@ class Order extends Model
     
     public static function prettyTurnover($year) {
         $total = static::whereRaw("YEAR(created_at) = :year", ["year" => $year])->selectRaw("SUM(setup->'$.subtotal') AS sum_subtotal")->first()->sum_subtotal;
-        return app(SiteScope::class)->prettyCurrency($total);
+        return app("centrale")->prettyCurrency($total);
     }
 }
