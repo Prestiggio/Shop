@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Ry\Admin\Models\Traits\HasJsonSetup;
 use Illuminate\Support\Facades\DB;
 use Ry\Centrale\SiteScope;
+use Carbon\Carbon;
 
 class Order extends Model
 {
@@ -74,11 +75,26 @@ class Order extends Model
     }
     
     public static function subtotalByDay($year) {
-        return static::whereRaw("YEAR(created_at) = :year AND MONTH(created_at) = MONTH(CURRENT_DATE())", ["year" => $year])
+        $rows = static::whereRaw("YEAR(created_at) = :year AND MONTH(created_at) = MONTH(CURRENT_DATE())", ["year" => $year])
         ->groupBy(DB::raw("DATE(created_at)"))
         ->orderBy("created_at")
         ->selectRaw("SUM(setup->'$.subtotal') AS quantity, DATE(created_at) AS month")
         ->get();
+        $start = Carbon::now()->startOfMonth();
+        $end = Carbon::now()->endOfMonth();
+        $ar = [];
+        $dates = [];
+        foreach($rows as $row) {
+            $dates[$row->month] = $row->quantity;
+        }
+        while($start->lte($end)) {
+            $ar[] = [
+                "quantity" => isset($dates[$start->format("Y-m-d")]) ? $dates[$start->format("Y-m-d")] : 0,
+                "month" => $start->format("Y-m-d")
+            ];
+            $start->addDay();
+        }
+        return $ar;
     }
     
     public static function prettyTurnover($year) {
