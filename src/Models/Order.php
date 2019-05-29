@@ -5,7 +5,6 @@ namespace Ry\Shop\Models;
 use Illuminate\Database\Eloquent\Model;
 use Ry\Admin\Models\Traits\HasJsonSetup;
 use Illuminate\Support\Facades\DB;
-use Ry\Centrale\SiteScope;
 use Carbon\Carbon;
 
 class Order extends Model
@@ -41,10 +40,14 @@ class Order extends Model
     }
     
     public static function subtotal($year) {
-        if(!isset(self::$subtotals[$year]))
-            self::$subtotals[$year] = DB::selectOne("SELECT SUM(setup->'$.subtotal') AS sum_subtotal 
-            FROM `ry_shop_orders` 
-            WHERE YEAR(created_at) = :year", ['year' => $year]);
+        if(!isset(self::$subtotals[$year])) {
+            $_order = static::where(DB::raw("YEAR(ry_shop_orders.created_at)"), "=", $year)
+            ->selectRaw("SUM(ry_shop_orders.setup->'$.subtotal') AS sum_subtotal")->first();
+            if($_order)
+                self::$subtotals[$year] = $_order;
+            else
+                self::$subtotals[$year] = (object)['sum_subtotal' => 0];
+        }
         return self::$subtotals[$year];
     }
     
@@ -54,31 +57,35 @@ class Order extends Model
     }
     
     public static function quantityByMonth($year) {
-        return static::groupBy(DB::raw("MONTH(created_at)"))
-            ->whereRaw("YEAR(created_at) = :year", ["year" => $year])
-            ->selectRaw("COUNT(*) AS quantity, MONTH(created_at) as month")->get();
+        return static::groupBy(DB::raw("MONTH(ry_shop_orders.created_at)"))
+            ->where(DB::raw("YEAR(ry_shop_orders.created_at)"), "=", $year)
+            ->selectRaw("COUNT(*) AS quantity, MONTH(ry_shop_orders.created_at) as month")->get();
     }
     
     public static function subtotalByMonth($year) {
-        return static::groupBy(DB::raw("MONTH(created_at)"))
-        ->whereRaw("YEAR(created_at) = :year", ["year" => $year])
-        ->selectRaw("SUM(setup->'$.subtotal') AS quantity, MONTH(created_at) as month")->get();
+        return static::groupBy(DB::raw("MONTH(ry_shop_orders.created_at)"))
+        ->where(DB::raw("YEAR(ry_shop_orders.created_at)"), "=", $year)
+        ->selectRaw("SUM(ry_shop_orders.setup->'$.subtotal') AS quantity, MONTH(ry_shop_orders.created_at) as month")->get();
     }
     
     public static function quantityOfYear($year) {
-        return static::whereRaw("YEAR(created_at) = :year", ["year" => $year])->count();
+        return static::where(DB::raw("YEAR(ry_shop_orders.created_at)"), "=", $year)->count();
     }
     
     public static function prettyTotalMonth($year) {
-        $total = static::whereRaw("YEAR(created_at) = :year AND MONTH(created_at) = MONTH(CURRENT_DATE())", ["year" => $year])->selectRaw("SUM(setup->'$.subtotal') AS sum_subtotal")->first()->sum_subtotal;
+        $total = 0;
+        $_order = static::where(DB::raw("YEAR(ry_shop_orders.created_at)"), "=", $year)->where(DB::raw("MONTH(ry_shop_orders.created_at)"), "=", DB::raw("MONTH(CURRENT_DATE())"))->selectRaw("SUM(ry_shop_orders.setup->'$.subtotal') AS sum_subtotal")->first();
+        if($_order) {
+            $total = $_order->sum_subtotal;
+        }
         return app("centrale")->prettyCurrency($total);
     }
     
     public static function subtotalByDay($year) {
-        $rows = static::whereRaw("YEAR(created_at) = :year AND MONTH(created_at) = MONTH(CURRENT_DATE())", ["year" => $year])
-        ->groupBy(DB::raw("DATE(created_at)"))
-        ->orderBy("created_at")
-        ->selectRaw("SUM(setup->'$.subtotal') AS quantity, DATE(created_at) AS month")
+        $rows = static::where(DB::raw("YEAR(ry_shop_orders.created_at)"), "=", $year)->where(DB::raw("MONTH(ry_shop_orders.created_at)"), "=", DB::raw("MONTH(CURRENT_DATE())"))
+        ->groupBy(DB::raw("DATE(ry_shop_orders.created_at)"))
+        ->orderBy("ry_shop_orders.created_at")
+        ->selectRaw("SUM(ry_shop_orders.setup->'$.subtotal') AS quantity, DATE(ry_shop_orders.created_at) AS month")
         ->get();
         $start = Carbon::now()->startOfMonth();
         $end = Carbon::now()->endOfMonth();
@@ -98,7 +105,11 @@ class Order extends Model
     }
     
     public static function prettyTurnover($year) {
-        $total = static::whereRaw("YEAR(created_at) = :year", ["year" => $year])->selectRaw("SUM(setup->'$.subtotal') AS sum_subtotal")->first()->sum_subtotal;
+        $total = 0;
+        $_order = static::where(DB::raw("YEAR(ry_shop_orders.created_at)"), "=", $year)->selectRaw("SUM(ry_shop_orders.setup->'$.subtotal') AS sum_subtotal")->first();
+        if($_order) {
+            $total = $_order->sum_subtotal;
+        }
         return app("centrale")->prettyCurrency($total);
     }
 }
