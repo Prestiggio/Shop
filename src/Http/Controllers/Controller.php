@@ -62,7 +62,7 @@ class Controller extends BaseController
     public function list() {
         $permission = Permission::authorize(__METHOD__);
         return view("$this->theme::ldjson", [
-            "theme" => "manager",
+            "theme" => $this->theme,
             "view" => "Shop.Currencies",
             "data" => Currency::paginate(10),
             "page" => [
