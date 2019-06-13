@@ -67,8 +67,8 @@ class Order extends Model
                 'quantity' => 0
             ];
         }
-        foreach($results as $j => $result) {
-            $ar[$j] = $result;
+        foreach($results as $result) {
+            $ar[$result->month-1] = $result;
         }
         return $ar;
     }
@@ -109,8 +109,8 @@ class Order extends Model
         ->orderBy("ry_shop_orders.created_at")
         ->selectRaw("SUM(ry_shop_orders.setup->'$.subtotal') AS quantity, DATE(ry_shop_orders.created_at) AS month")
         ->get();
-        $start = Carbon::now()->startOfMonth();
-        $end = Carbon::now()->endOfMonth();
+        $start = Carbon::now()->year($year)->startOfMonth();
+        $end = Carbon::now()->year($year)->endOfMonth();
         $ar = [];
         $dates = [];
         foreach($rows as $row) {
