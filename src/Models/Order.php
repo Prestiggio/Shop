@@ -57,15 +57,37 @@ class Order extends Model
     }
     
     public static function quantityByMonth($year) {
-        return static::groupBy(DB::raw("MONTH(ry_shop_orders.created_at)"))
+        $results = static::groupBy(DB::raw("MONTH(ry_shop_orders.created_at)"))
             ->where(DB::raw("YEAR(ry_shop_orders.created_at)"), "=", $year)
             ->selectRaw("COUNT(*) AS quantity, MONTH(ry_shop_orders.created_at) as month")->get();
+        $ar = [];
+        for($i=0; $i<12; $i++) {
+            $ar[$i] = [
+                'month' => $i+1,
+                'quantity' => 0
+            ];
+        }
+        foreach($results as $j => $result) {
+            $ar[$j] = $result;
+        }
+        return $ar;
     }
     
     public static function subtotalByMonth($year) {
-        return static::groupBy(DB::raw("MONTH(ry_shop_orders.created_at)"))
+        $results = static::groupBy(DB::raw("MONTH(ry_shop_orders.created_at)"))
         ->where(DB::raw("YEAR(ry_shop_orders.created_at)"), "=", $year)
         ->selectRaw("SUM(ry_shop_orders.setup->'$.subtotal') AS quantity, MONTH(ry_shop_orders.created_at) as month")->get();
+        $ar = [];
+        for($i=0; $i<12; $i++) {
+            $ar[$i] = [
+                'month' => $i+1,
+                'quantity' => 0
+            ];
+        }
+        foreach($results as $j => $result) {
+            $ar[$j] = $result;
+        }
+        return $ar;
     }
     
     public static function quantityOfYear($year) {
@@ -105,11 +127,7 @@ class Order extends Model
     }
     
     public static function prettyTurnover($year) {
-        $total = 0;
-        $_order = static::where(DB::raw("YEAR(ry_shop_orders.created_at)"), "=", $year)->selectRaw("SUM(ry_shop_orders.setup->'$.subtotal') AS sum_subtotal")->first();
-        if($_order) {
-            $total = $_order->sum_subtotal;
-        }
-        return app("centrale")->prettyCurrency($total);
+        $total = static::subtotal($year);
+        return app("centrale")->prettyCurrency($total->sum_subtotal);
     }
 }
