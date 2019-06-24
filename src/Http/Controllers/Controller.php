@@ -59,7 +59,23 @@ class Controller extends BaseController
         return $this;
     }
     
-    public function list() {
+    public function list(Request $request) {
+        $permission = Permission::authorize(__METHOD__);
+        $orders = Order::with(['buyer', 'seller'])->paginate(10);
+        return view("$this->theme::ldjson", [
+            "theme" => $this->theme,
+            "view" => "Ry.Shop.Orders",
+            "data" => $orders,
+            "page" => [
+                "title" => __("commandes"),
+                "href" => __("get_orders"),
+                "icon" => "fa fa-cart",
+                "permission" => $permission
+            ]
+        ]);
+    }
+    
+    public function listCurrency() {
         $permission = Permission::authorize(__METHOD__);
         return view("$this->theme::ldjson", [
             "theme" => $this->theme,

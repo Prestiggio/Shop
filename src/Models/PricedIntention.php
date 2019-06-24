@@ -1,6 +1,6 @@
 <?php
 
-namespace App;
+namespace Ry\Shop\Models;
 
 use Illuminate\Database\Eloquent\Model;
 
