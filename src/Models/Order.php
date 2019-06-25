@@ -15,12 +15,8 @@ class Order extends Model
     
     private static $subtotals = [];
     
-    protected static function boot() {
-        parent::boot();
-        
-        static::addGlobalScope('chrono', function($q){
-            $q->orderBy('ry_shop_orders.created_at', 'desc');
-        });
+    public function scopeAlpha($q) {
+        $q->orderBy('ry_shop_orders.created_at', 'desc');
     }
     
     public function cart() {

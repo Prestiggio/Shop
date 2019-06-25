@@ -61,7 +61,7 @@ class Controller extends BaseController
     
     public function list(Request $request) {
         $permission = Permission::authorize(__METHOD__);
-        $orders = Order::with(['buyer', 'seller'])->paginate(10);
+        $orders = Order::with(['buyer', 'seller'])->alpha()->paginate(10);
         return view("$this->theme::ldjson", [
             "theme" => $this->theme,
             "view" => "Ry.Shop.Orders",
