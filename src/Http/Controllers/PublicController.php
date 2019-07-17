@@ -849,10 +849,14 @@ class PublicController extends Controller
 				$user->email = $ph . "@amelior.mg";
 				$user->save();
 				
-				app("\Ry\Profile\Http\Controllers\AdminController")->putContacts($user, [[
-						"contact_type" => "phone",
-						"coord" => $ph
-				]]);
+				app("\Ry\Profile\Http\Controllers\AdminController")->putContacts($user, [
+				    "fixe" => [
+				        "ndetail" => [
+				            "contact_type" => "phone",
+						    "value" => $ph
+				        ]
+				    ]
+				]);
 			}
 			Auth::login($user);
 		}
