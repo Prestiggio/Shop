@@ -15,13 +15,15 @@ class CreateCustomersTable extends Migration
         Schema::create('ry_shop_customers', function (Blueprint $table) {
             $table->increments('id');
             $table->morphs("facturable");
-            $table->integer("shop_id", false, true);
+            $table->unsignedBigInteger('author_id')->nullable();
+            $table->integer("shop_id", false, true)->nullable();
             $table->decimal("outstanding_allow_amount", 20, 6);
             $table->boolean("show_public_prices")->default(0);
             $table->integer("max_payment_days", false, true)->default(60);
             $table->text("note")->nullable();
             $table->boolean("active")->default(0);
             $table->boolean("is_guest")->default(0);
+            $table->json('setup')->nullable();
             $table->timestamps();
             
             $table->unique(["facturable_id", "facturable_type"]);

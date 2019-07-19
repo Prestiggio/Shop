@@ -5,10 +5,12 @@ namespace Ry\Shop\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Collection;
 use Ry\Analytics\Models\Traits\LinkableTrait;
+use Ry\Admin\Models\Traits\HasJsonSetup;
+use App\User;
 
 class Customer extends Model
 {
-	use LinkableTrait;
+	use LinkableTrait, HasJsonSetup;
 
     protected $table = "ry_shop_customers";
     
@@ -20,6 +22,10 @@ class Customer extends Model
     
     public function facturable() {
     	return $this->morphTo();
+    }
+    
+    public function author() {
+        return $this->belongsTo(User::class, 'author_id');
     }
     
     public function owner() {
