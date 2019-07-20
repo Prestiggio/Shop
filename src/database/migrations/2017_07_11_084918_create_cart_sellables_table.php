@@ -14,15 +14,14 @@ class CreateCartSellablesTable extends Migration
     {
         Schema::create('ry_shop_cart_sellables', function (Blueprint $table) {
             $table->increments('id');
+            $table->integer("shop_id", false, true)->nullable();
             $table->integer("cart_id", false, true);
-            $table->integer("sellable_id", false, true);
-            $table->integer("delivery_adresse_id", false, true)->nullable();
-            $table->integer("shop_id", false, true);
+            $table->morphs("sellable");
+            $table->json('setup')->nullable();
             $table->integer("quantity", false, true);
             $table->char("unit", 20)->nullable();
+            $table->integer("delivery_adresse_id", false, true)->nullable();
             $table->timestamps();
-            
-            $table->unique(["cart_id", "sellable_id"]);
         });
     }
 

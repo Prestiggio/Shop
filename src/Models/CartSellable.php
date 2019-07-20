@@ -10,12 +10,12 @@ class CartSellable extends Model
     
     //protected $with = ["sellable", "deliveryAdresse"];
     
-    public function cart() {
-    	return $this->belongsTo("Ry\Shop\Models\Cart", "cart_id");
+    public function sellable() {
+        return $this->morphTo();
     }
     
-    public function sellable() {
-    	return $this->belongsTo("Ry\Shop\Models\Sellable", "sellable_id");
+    public function cart() {
+    	return $this->belongsTo("Ry\Shop\Models\Cart", "cart_id");
     }
     
     public function deliveryAdresse() {
