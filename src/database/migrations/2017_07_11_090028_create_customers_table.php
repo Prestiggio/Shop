@@ -25,8 +25,6 @@ class CreateCustomersTable extends Migration
             $table->boolean("is_guest")->default(0);
             $table->json('setup')->nullable();
             $table->timestamps();
-            
-            $table->unique(["facturable_id", "facturable_type"]);
         });
     }
 
