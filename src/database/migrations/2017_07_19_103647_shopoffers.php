@@ -14,7 +14,7 @@ class Shopoffers extends Migration
     {
         Schema::create('ry_shop_offers', function (Blueprint $table) {
             $table->increments('id');
-            $table->integer("author_id", false, true);
+            $table->unsignedBigInteger("author_id");
             $table->char("wpblog_url");
             $table->enum("type", ["once", "forfait", "abonnement"])->default("once");
             $table->char("period")->nullable();

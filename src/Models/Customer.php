@@ -7,10 +7,11 @@ use Illuminate\Database\Eloquent\Collection;
 use Ry\Analytics\Models\Traits\LinkableTrait;
 use Ry\Admin\Models\Traits\HasJsonSetup;
 use App\User;
+use Ry\Shop\Models\Traits\HasBankAccounts;
 
 class Customer extends Model
 {
-	use LinkableTrait, HasJsonSetup;
+	use LinkableTrait, HasJsonSetup, HasBankAccounts;
 
     protected $table = "ry_shop_customers";
     

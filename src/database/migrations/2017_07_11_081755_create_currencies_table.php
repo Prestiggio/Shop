@@ -16,6 +16,7 @@ class CreateCurrenciesTable extends Migration
             $table->increments('id');
             $table->char("name", 64);
 			$table->char("iso_code", 3);
+			$table->char('symbol', 5);
 			$table->decimal("conversion_rate", 13, 6);
 			$table->boolean("active")->default(true);
             $table->timestamps();
