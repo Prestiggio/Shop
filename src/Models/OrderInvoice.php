@@ -13,6 +13,14 @@ class OrderInvoice extends Model
     
     //protected $with = ["payments"];
     
+    protected static function boot() {
+        parent::boot();
+        
+        static::addGlobalScope('chrono', function($q){
+            $q->orderBy('created_at', 'desc');
+        });
+    }
+    
     public function order() {
     	return $this->belongsTo("Ry\Shop\Models\Order", "order_id");
     }
