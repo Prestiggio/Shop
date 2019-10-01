@@ -5,9 +5,12 @@ namespace Ry\Shop\Models;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Collection;
 use Session;
+use Ry\Admin\Models\Traits\HasJsonSetup;
 
 class Cart extends Model
 {
+    use HasJsonSetup;
+    
     protected $table = "ry_shop_carts";
     
     //protected $with = ["items", "shop", "deliveryAddress", "invoiceAddress", "currency", "customer"];

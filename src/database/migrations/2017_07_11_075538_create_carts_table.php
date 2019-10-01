@@ -20,6 +20,7 @@ class CreateCartsTable extends Migration
             $table->integer("currency_id", false, true);
             $table->integer("customer_id", false, true);
             $table->boolean("recyclable")->default(true);
+            $table->json('setup')->nullable();
             $table->timestamps();
         });
     }

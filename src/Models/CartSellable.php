@@ -3,9 +3,12 @@
 namespace Ry\Shop\Models;
 
 use Illuminate\Database\Eloquent\Model;
+use Ry\Admin\Models\Traits\HasJsonSetup;
 
 class CartSellable extends Model
 {
+    use HasJsonSetup;
+    
     protected $table = "ry_shop_cart_sellables";
     
     //protected $with = ["sellable", "deliveryAdresse"];
