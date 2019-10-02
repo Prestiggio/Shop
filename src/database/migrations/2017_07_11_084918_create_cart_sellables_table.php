@@ -18,7 +18,7 @@ class CreateCartSellablesTable extends Migration
             $table->integer("cart_id", false, true);
             $table->morphs("sellable");
             $table->json('setup')->nullable();
-            $table->integer("quantity", false, true);
+            $table->decimal("quantity", 20, 8);
             $table->char("unit", 20)->nullable();
             $table->integer("delivery_adresse_id", false, true)->nullable();
             $table->timestamps();
