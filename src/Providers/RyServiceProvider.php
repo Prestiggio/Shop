@@ -11,6 +11,8 @@ use Ry\Shop\Models\Customer;
 use Ry\Shop\Models\Pack;
 use Ry\Shop\Models\PackItem;
 use Ry\Shop\Console\Commands\ExpiredReminder;
+use Ry\Shop\Models\CartSellable;
+use Ry\Shop\Models\OrderItem;
 
 class RyServiceProvider extends ServiceProvider
 {
@@ -56,6 +58,27 @@ class RyServiceProvider extends ServiceProvider
 		app("ryanalytics.slug")->register("customer", Customer::class);
     	
     	app("ryshop")->sell(PackItem::class);
+    	
+    	$this->app->booted(function(){
+            $sellable_types = CartSellable::selectRaw('DISTINCT sellable_type')->get();
+            foreach($sellable_types as $sellable_type) {
+                call_user_func_array([$sellable_type->sellable_type, 'deleting'], [function($node){
+                    if(CartSellable::whereSellableType(get_class($node))->whereSellableId($node->id)->exists()){
+                        throw new \Exception(__("Ce produit est enregistré dans un panier, il ne peut pas être supprimé."));
+                        return false;
+                    }
+                }]);
+            }
+            $sellable_types = OrderItem::selectRaw('DISTINCT sellable_type')->get();
+            foreach($sellable_types as $sellable_type) {
+                call_user_func_array([$sellable_type->sellable_type, 'deleting'], [function($node){
+                    if(OrderItem::whereSellableType(get_class($node))->whereSellableId($node->id)->exists()) {
+                        throw new \Exception(__("Ce produit est enregistré dans une commande, il ne peut pas être supprimé."));
+                        return false;
+                    }
+                }]);
+            }
+    	});
     }
 
     /**
