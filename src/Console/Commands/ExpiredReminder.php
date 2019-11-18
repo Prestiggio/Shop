@@ -8,6 +8,7 @@ use Ry\Shop\Models\Shop;
 use Ry\Shop\Models\Customer;
 use Ry\Shop\Models\Subscription;
 use Mail;
+use Carbon\Carbon;
 
 class ExpiredReminder extends Command
 {
@@ -43,11 +44,12 @@ class ExpiredReminder extends Command
     public function handle()
     {
         $customers = Customer::whereHas("subscriptions", function($query){
-            $query->whereRaw("(DATEDIFF(DATE(ry_shop_subscriptions.expiry), CURDATE()) = 60 OR DATEDIFF(DATE(ry_shop_subscriptions.expiry), CURDATE()) = 30 OR DATEDIFF(DATE(ry_shop_subscriptions.expiry), CURDATE()) = 15 OR DATEDIFF(DATE(ry_shop_subscriptions.expiry), CURDATE()) = 7 OR DATEDIFF(DATE(ry_shop_subscriptions.expiry), CURDATE()) = 3) AND DATEDIFF(DATE(ry_shop_subscriptions.expiry), CURDATE()) > 0");
+            $date = Carbon::now()->format('Y-m-d');
+            $query->whereRaw("(DATEDIFF(DATE(ry_shop_subscriptions.expiry), ?) = 60 OR DATEDIFF(DATE(ry_shop_subscriptions.expiry), ?) = 30 OR DATEDIFF(DATE(ry_shop_subscriptions.expiry), ?) = 15 OR DATEDIFF(DATE(ry_shop_subscriptions.expiry), ?) = 7 OR DATEDIFF(DATE(ry_shop_subscriptions.expiry), ?) = 3) AND DATEDIFF(DATE(ry_shop_subscriptions.expiry), ?) > 0", [$date, $date, $date, $date, $date, $date]);
         })->get();
         foreach($customers as $customer) {
             Mail::send("ryappeldoffres::emails.expiry", [
-                "subscriptions" => $customer->subscriptions()->whereRaw("(DATEDIFF(DATE(expiry), CURDATE()) = 60 OR DATEDIFF(DATE(expiry), CURDATE()) = 30 OR DATEDIFF(DATE(expiry), CURDATE()) = 15 OR DATEDIFF(DATE(expiry), CURDATE()) = 7 OR DATEDIFF(DATE(expiry), CURDATE()) = 3) AND DATEDIFF(DATE(expiry), CURDATE()) > 0")->get(),
+                "subscriptions" => $customer->subscriptions()->whereRaw("(DATEDIFF(DATE(expiry), ?) = 60 OR DATEDIFF(DATE(expiry), ?) = 30 OR DATEDIFF(DATE(expiry), ?) = 15 OR DATEDIFF(DATE(expiry), ?) = 7 OR DATEDIFF(DATE(expiry), ?) = 3) AND DATEDIFF(DATE(expiry), ?) > 0", [$date, $date, $date, $date, $date, $date])->get(),
                 "customer" => $customer,
                 "shop" => Shop::find(1),
             ], function($message) use ($customer){
