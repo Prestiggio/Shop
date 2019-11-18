@@ -67,8 +67,8 @@ class Controller extends BaseController
             "view" => "Ry.Shop.Orders",
             "data" => $orders,
             "page" => [
-                "title" => __("commandes"),
-                "href" => __("get_orders"),
+                "title" => __("Commandes"),
+                "href" => __("/orders"),
                 "icon" => "fa fa-cart",
                 "permission" => $permission
             ]
@@ -82,8 +82,8 @@ class Controller extends BaseController
             "view" => "Ry.Shop.Currencies",
             "data" => Currency::paginate(10),
             "page" => [
-                "title" => __("codes_devises"),
-                "href" => __("get_currencies"),
+                "title" => __("Codes devises"),
+                "href" => __("/currencies"),
                 "icon" => "fa fa-money-bill-wave",
                 "permission" => $permission
             ]
