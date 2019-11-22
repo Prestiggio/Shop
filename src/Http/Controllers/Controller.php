@@ -32,6 +32,7 @@ use Ry\Campagnes\Models\Campagne;
 use Ry\Affiliate\Models\Affiliate;
 use Ry\Pim\Models\Warehouse\Warehouse;
 use Ry\Opportunites\Models\Contract;
+use Ry\Opportunites\Models\QuotesRequestGroup;
 use Ry\Pim\Models\Product\VariantSourcing;
 use Illuminate\Support\Collection;
 use Ry\Categories\Models\Categorygroup;
@@ -59,9 +60,44 @@ class Controller extends BaseController
         return $this;
     }
     
+    public function detail(Request $request) {
+        $permission = Permission::authorize(__METHOD__);
+        $order = Order::with(['buyer.adresse.ville.country', 'buyer.contacts', 'seller', 'items.sellable.product.medias'])->find($request->get('id'));
+        $order->setAttribute('operation', QuotesRequestGroup::find($order->nsetup['operation_id']));
+        $order->append('nsetup');
+        $order->items->each(function($item){
+            $item->append('nsetup');
+            $item->sellable->append('nsetup');
+        });
+        return view("$this->theme::ldjson", [
+            "theme" => $this->theme,
+            "view" => "Ry.Shop.Orders.Detail",
+            "data" => $order,
+            "parents" => [
+                [
+                    "title" => $order->buyer_type==Affiliate::class ? __("Commandes affiliés") : __("Commandes fournisseurs"),
+                    "href" => $order->buyer_type==Affiliate::class ? __("/affiliate_orders") : __("/supplier_orders")
+                ]
+            ],
+            "page" => [
+                "title" => __("Détail commande"),
+                "href" => __("/order?id=".$order->id),
+                "icon" => "fa fa-cart",
+                "permission" => $permission
+            ]
+        ]);
+    }
+    
     public function list(Request $request) {
         $permission = Permission::authorize(__METHOD__);
-        $orders = Order::with(['buyer', 'seller'])->alpha()->paginate(10);
+        $query = Order::with(['buyer', 'seller', 'items']);
+        if($request->has('buyer_type')) {
+            $query->where('buyer_type', '=', $request->get('buyer_type'));
+        }
+        if($request->has('seller_type')) {
+            $query->where('seller_type', '=', $request->get('seller_type'));
+        }
+        $orders = $query->alpha()->paginate(10);
         return view("$this->theme::ldjson", [
             "theme" => $this->theme,
             "view" => "Ry.Shop.Orders",
