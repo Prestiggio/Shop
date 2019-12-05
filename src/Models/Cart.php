@@ -6,10 +6,11 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Collection;
 use Session;
 use Ry\Admin\Models\Traits\HasJsonSetup;
+use Ry\Admin\Models\Traits\ArchivableTrait;
 
 class Cart extends Model
 {
-    use HasJsonSetup;
+    use HasJsonSetup, ArchivableTrait;
     
     protected $table = "ry_shop_carts";
     
