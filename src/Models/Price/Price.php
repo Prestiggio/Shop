@@ -4,6 +4,7 @@ namespace Ry\Shop\Models\Price;
 
 use Illuminate\Database\Eloquent\Model;
 use Ry\Admin\Models\Traits\HasJsonSetup;
+use Ry\Shop\Models\Shop;
 
 class Price extends Model
 {
@@ -15,6 +16,10 @@ class Price extends Model
     
     public function priceable() {
         return $this->morphTo();
+    }
+    
+    public function shop() {
+        return $this->belongsTo(Shop::class, 'shop_id');
     }
     
     public function getNsetupAttribute() {

@@ -15,7 +15,7 @@ class CreateShopsTable extends Migration
         Schema::create('ry_shop_shops', function (Blueprint $table) {
             $table->increments('id');
             $table->integer("shop_group_id", false, true);
-            $table->integer("owner_id", false, true);
+            $table->morphs("owner");
             $table->char("name", 64);
             $table->boolean("active")->default(true);
             $table->timestamps();
