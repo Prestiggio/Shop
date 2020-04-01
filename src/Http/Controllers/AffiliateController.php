@@ -71,7 +71,9 @@ class AffiliateController extends Controller
                 foreach($prices as $price) {
                     $price->setAttribute('unit_price_commissionned', $price->price*(1+$commissions/100));
                 }
-                $item->setAttribute('prices', $prices);
+                $item->setAttribute('sellable_nsetup', [
+                    'prices' => $prices
+                ]);
                 $item->append('nsetup');
                 $item->append("visible_specs");
                 $nvariants++;
@@ -107,62 +109,58 @@ class AffiliateController extends Controller
             $shop_group->save();
         }
         
-        if(isset($ar['variant_suppliers'])) {
+        if(isset($ar['shop'])) {
             OrderItem::unguard();
-            foreach($ar['variant_suppliers'] as $variant_supplier_id => $variant) {
-                if(doubleval($variant['quantity'])<=0)
-                    continue;
-                
-                $supplier = VariantSupplier::find($variant_supplier_id)->select(['supplier_id', 'product_variant_id'])->first();
-                    
-                $cart_sellable = CartSellable::find($variant['cart_sellable_id']);
-                
-                $shop = Shop::whereOwnerType(Supplier::class)->whereOwnerId($supplier->supplier_id)->whereShopGroupId($shop_group->id)->first();
-                if(!$shop) {
-                    $shop = new Shop();
-                    $shop->owner_type = Supplier::class;
-                    $shop->owner_id = $supplier->supplier_id;
-                    $shop->shop_group_id = $shop_group->id;
-                    $shop->active = true;
-                    $shop->name = $this->owner->name;
-                    $shop->save();
-                }
-                
+            foreach($ar['shop'] as $shop_id => $variants) {
+                $shop = Shop::find($shop_id);
+                $supplier = $shop->owner;
                 $order = Order::whereBuyerType(Affiliate::class)->whereBuyerId($me->affiliation->id)
-                ->whereSellerType(Supplier::class)->whereSellerId($supplier->supplier_id)->whereCartId($ar['id'])
+                ->whereSellerType(Supplier::class)->whereSellerId($supplier->id)->whereCartId($ar['id'])
                 ->whereShopId($shop->id)->first();
                 if(!$order) {
                     $order = new Order();
                     $order->buyer_type = Affiliate::class;
                     $order->buyer_id = $me->affiliation->id;
                     $order->seller_type = Supplier::class;
-                    $order->seller_id = $supplier->supplier_id;
+                    $order->seller_id = $supplier->id;
                     $order->cart_id = $ar['id'];
                     $order->shop_id = $shop->id;
-                    $order->shop_id = $shop->id;
+                    $order->nsetup = [
+                        'type' => 'marketplace'
+                    ];
                     $order->save();
+                    
+                    app("centrale")->toSite($order);
                 }
                 
-                $order_item = $order->items()->whereSellableType(Variant::class)->whereSellableId($supplier->product_variant_id)->first();
-                if(!$order_item) {
-                    $order_item = $order->items()->create([
-                        'sellable_type' => Variant::class,
-                        'sellable_id' => $supplier->product_variant_id,
-                        'quantity' => $variant['quantity'],
-                        'price' => $variant['total_price'],
-                        'setup' => $cart_sellable->setup
-                    ]);
+                foreach($variants['variants'] as $product_variant_id => $variant) {
+                    if(doubleval($variant['quantity'])<=0)
+                        continue;
+                    
+                    $cart_sellable = CartSellable::find($variant['cart_sellable_id']);
+                    
+                    $order_item = $order->items()->whereSellableType(Variant::class)->whereSellableId($product_variant_id)->first();
+                    if(!$order_item) {
+                        $order_item = $order->items()->create([
+                            'sellable_type' => Variant::class,
+                            'sellable_id' => $product_variant_id,
+                            'quantity' => $variant['quantity'],
+                            'price' => $variant['total_price'],
+                            'setup' => $cart_sellable->setup
+                        ]);
+                    }
+                    else {
+                        $order_item->quantity = $variant['quantity'];
+                        $order_item->price = $variant['total_price'];
+                        $order_item->setup = $cart_sellable->setup;
+                        $order_item->save();
+                    }
+                    $cart_sellable->delete();
                 }
-                else {
-                    $order_item->quantity = $variant['quantity'];
-                    $order_item->price = $variant['total_price'];
-                    $order_item->setup = $cart_sellable->setup;
-                    $order_item->save();
-                }
-                $cart_sellable->delete();
             }
             OrderItem::reguard();
         }
+        
         if(count($errors)>0) {
             return redirect(__('/cart').'?source=mp')->with('message', [
                 'content' => implode('<br/>', $errors),
@@ -179,19 +177,50 @@ class AffiliateController extends Controller
     
     public function get_orders() {
         $me = app("affiliation")->getLogged();
-        $query = Order::with(['items.sellable.product.medias'])->whereBuyerType(Affiliate::class)->whereBuyerId($me->affiliation->id);
+        $query = Order::with(['items.sellable.product.medias'])
+        ->join('ry_shop_order_items', 'ry_shop_order_items.order_id', '=', 'ry_shop_orders.id')
+        ->whereBuyerType(Affiliate::class)->whereBuyerId($me->affiliation->id)->where('ry_shop_orders.setup->type', 'marketplace');
         $data = $query->orderBy('ry_shop_orders.id', 'desc')
-        ->groupBy("ry_shop_orders.buyer_id")
+        ->groupBy("ry_shop_orders.id")
         ->selectRaw("ry_shop_orders.*,
             SUM(ry_shop_order_items.price) AS total_price,
             COUNT(DISTINCT(ry_shop_order_items.sellable_id)) AS nvariants")
             ->paginate($this->perpage);
+        $data->map(function($order){
+            $order->setAttribute('code', 'MP-' . $order->created_at->format('ymd'). '-' . $order->id);
+        });
         return view("ryshop::ldjson", [
             "data" => $data,
-            "view" => "Affiliate.Markeplace.Order.List",
+            "view" => "Affiliate.Marketplace.Order.List",
             "page" => [
                 "title" => __("Marketplace - Liste des bons de commande"),
                 "href" => __("/marketplace/orders")
+            ]
+        ]);
+    }
+    
+    public function get_order(Request $request) {
+        $order = Order::with([
+            "items.sellable.product.medias", 
+            "buyer.users.profile",
+            "buyer.adresse.ville.country",
+            "buyer.warehouses.users.profile",
+            "buyer.warehouses.adresse.ville.country"
+        ])->find($request->get('id'));
+        $code = 'MP-' . $order->created_at->format('ymd'). '-' . $order->id;
+        $order->setAttribute('code', $code);
+        $order->items->map(function($item){
+            $item->append(['nsetup']);
+            $item->sellable->append(['nsetup', 'visible_specs']);
+            $item->sellable->product->append(['details', 'visible_specs']);
+        });
+        return view("rypim::ldjson", [
+            "order" => $order,
+            "affiliate" => $order->buyer,
+            "view" => "Affiliate.Marketplace.Order.Detail",
+            "page" => [
+                "title" => __("Bon de commande :code", ["code" => $code]),
+                "href" => __("/marketplace/order?id=:id", ['id' => $order->id])
             ]
         ]);
     }
