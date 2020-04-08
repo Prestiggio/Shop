@@ -79,7 +79,7 @@ class AffiliateController extends Controller
                 $nvariants++;
             });
         });
-        return view("ryshop::ldjson", [
+        return view("ldjson", [
             "data" => $products,
             "view" => "Affiliate.Marketplace.Products",
             "page" => [
@@ -189,7 +189,7 @@ class AffiliateController extends Controller
         $data->map(function($order){
             $order->setAttribute('code', 'MP-' . $order->created_at->format('ymd'). '-' . $order->id);
         });
-        return view("ryshop::ldjson", [
+        return view("ldjson", [
             "data" => $data,
             "view" => "Affiliate.Marketplace.Order.List",
             "page" => [
@@ -214,7 +214,7 @@ class AffiliateController extends Controller
             $item->sellable->append(['nsetup', 'visible_specs']);
             $item->sellable->product->append(['details', 'visible_specs']);
         });
-        return view("rypim::ldjson", [
+        return view("ldjson", [
             "order" => $order,
             "affiliate" => $order->buyer,
             "view" => "Affiliate.Marketplace.Order.Detail",

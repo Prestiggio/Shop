@@ -52,14 +52,7 @@ use Ry\Pim\Http\Controllers\Product\OptionController;
 use App\Http\Controllers\Controller as BaseController;
 
 class Controller extends BaseController
-{
-    protected $theme;
-    
-    public function setTheme($theme) {
-        $this->theme = $theme;
-        return $this;
-    }
-    
+{   
     public function detail(Request $request) {
         $permission = Permission::authorize(__METHOD__);
         $order = Order::with(['buyer.adresse.ville.country', 'buyer.contacts', 'seller', 'items.sellable.product.medias'])->find($request->get('id'));
@@ -69,8 +62,7 @@ class Controller extends BaseController
             $item->append('nsetup');
             $item->sellable->append('nsetup');
         });
-        return view("$this->theme::ldjson", [
-            "theme" => $this->theme,
+        return view("ldjson", [
             "view" => "Ry.Shop.Orders.Detail",
             "data" => $order,
             "parents" => [
@@ -98,8 +90,7 @@ class Controller extends BaseController
             $query->where('seller_type', '=', $request->get('seller_type'));
         }
         $orders = $query->alpha()->paginate(10);
-        return view("$this->theme::ldjson", [
-            "theme" => $this->theme,
+        return view("ldjson", [
             "view" => "Ry.Shop.Orders",
             "data" => $orders,
             "page" => [
@@ -113,8 +104,7 @@ class Controller extends BaseController
     
     public function listCurrency() {
         $permission = Permission::authorize(__METHOD__);
-        return view("$this->theme::ldjson", [
-            "theme" => $this->theme,
+        return view("ldjson", [
             "view" => "Ry.Shop.Currencies",
             "data" => Currency::paginate(10),
             "page" => [
