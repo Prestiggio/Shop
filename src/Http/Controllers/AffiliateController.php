@@ -6,12 +6,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Ry\Admin\Http\Traits\ActionControllerTrait;
 use Ry\Affiliate\Models\Affiliate;
+use Ry\Categories\Models\Categorie;
 use Ry\Pim\Models\Product\Product;
 use Ry\Pim\Models\Supplier\Supplier;
 use Ry\Shop\Models\CartSellable;
 use Ry\Shop\Models\Order;
 use Ry\Shop\Models\Shop;
 use Ry\Shop\Models\ShopGroup;
+use Ry\Pim\Models\Product\Option;
 use Ry\Pim\Models\Product\VariantSupplier;
 use Ry\Pim\Models\Product\Variant;
 use Ry\Shop\Models\OrderItem;
@@ -35,7 +37,8 @@ class AffiliateController extends Controller
         }
     }
     
-    public function get_products() {
+    public function get_products(Request $request) {
+        $ar = $request->all();
         $me = app("affiliation")->getLogged();
         $site = app("centrale")->getSite();
         
@@ -79,14 +82,45 @@ class AffiliateController extends Controller
                 $nvariants++;
             });
         });
-        return view("ldjson", [
-            "data" => $products,
+        $filtered = isset($ar['s']['options']);
+        $categories = Categorie::cacheGroup('product', $site->id)->filter(function($item){
+            return $item->active;
+        });
+        $options = Option::where('ry_pim_product_options.setup->in_filter', true)->get();
+        $options->map(function(&$option)use($ar){
+            $form = $option->form;
+            if(isset($form['options']) && $form['options'] instanceof Collection) {
+                Categorie::attributeAll($form['options'], ['show' => false]);
+                $ids = Variant::selectRaw("DISTINCT(JSON_UNQUOTE(
+                        JSON_EXTRACT(
+                            JSON_EXTRACT(setup, JSON_UNQUOTE(
+                                                    REPLACE(JSON_SEARCH(setup, 'one', '{$option->name}'), '.option', ''))),
+                         '$.id'))) AS d")->pluck("d")->toArray();
+                Categorie::attributeByIds($form['options'], $ids, ['show' => true]);
+                if(isset($ar['s']['options'][$option->name]) && count($ar['s']['options'][$option->name])) {
+                    Categorie::attributeByIds($form['options'], $ar['s']['options'][$option->name], ['selected' => true]);
+                }
+                $option->form = $form;
+            }
+            $option->append('form');
+        });
+        return view("ldjson", array_merge([
+            "type" => "products",
+            'nvariants' => $nvariants,
+            'specs_options' => Variant::getOptions(),
+            "filtered" => $filtered,
+            "categories" => $categories,
+            "filtrable_options" => $options,
+            "filtrable_categories" => [],
+            "query" => isset($ar['s'])?[
+                "s" => $ar['s']
+            ]:[],
             "view" => "Affiliate.Marketplace.Products",
             "page" => [
                 "title" => __("Liste des produits"),
                 "href" => __("/marketplace/products")
             ]
-        ]);
+        ]), $products->toArray());
     }
     
     public function post_order(Request $request) {
