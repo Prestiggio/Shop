@@ -123,6 +123,55 @@ class AffiliateController extends Controller
         ]), $products->toArray());
     }
     
+    public function get_product($slug, $id) {
+        $variant_responses = [];
+        $me = app("affiliation")->getLogged();
+        $arcommissions = isset($me->affiliation->details->nsetup['commissions']) ? $me->affiliation->details->nsetup['commissions'] : [];
+        $commissions = 0;
+        foreach($arcommissions as $icommission) {
+            $commissions+=floatval($icommission);
+        }
+        $product = Product::with(["variants.sourcings", "medias", "categories"])->find($id);
+        $product->append('details');
+        $product->append('href');
+        $product->variants->map(function($item)use($variant_responses, $commissions, $arcommissions, $me){
+            $site = app("centrale")->getSite();
+            $shop_group = ShopGroup::where('setup->site_id', $site->id)->first();
+            if(!$shop_group) {
+                $shop_group = new ShopGroup();
+                $shop_group->name = $site->hostname;
+                $shop_group->nsetup = [
+                    "site_id" => $site->id,
+                    "share_customer" => true,
+                    "share_order" => true,
+                    "share_stock" => true
+                ];
+                $shop_group->active = $site->active;
+                $shop_group->save();
+            }
+            $prices = Price::wherePriceableType(Variant::class)->wherePriceableId($item->id)
+            ->whereHas('shop', function($q)use($shop_group){
+                $q->whereShopGroupId($shop_group->id);
+            })->get();
+            foreach($prices as $price) {
+                $price->setAttribute('unit_price_commissionned', $price->price*(1+$commissions/100));
+            }
+            $item->setAttribute('sellable_nsetup', [
+                'prices' => $prices
+            ]);
+            $item->append('nsetup');
+            $item->append("visible_specs");
+        });
+        return view("ldjson", [
+            "view" => "Affiliate.Marketplace.Product.Detail",
+            'data' => $product,
+            "page" => [
+                "title" => __("Opération :product", ["product" => $product->name]),
+                "href" => __("/marketplace" . $product->href)
+            ]
+        ]);
+    }
+    
     public function post_order(Request $request) {
         $me = app("affiliation")->getLogged();
         $ar = $request->all();
