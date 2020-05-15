@@ -5,6 +5,7 @@ namespace Ry\Shop\Models\Price;
 use Illuminate\Database\Eloquent\Model;
 use Ry\Admin\Models\Traits\HasJsonSetup;
 use Ry\Shop\Models\Shop;
+use Ry\Shop\Models\Currency;
 
 class Price extends Model
 {
@@ -29,5 +30,9 @@ class Price extends Model
             'period' => 'monthly',
             'mode' => ''
         ];
+    }
+    
+    public function currency() {
+        return $this->belongsTo(Currency::class, 'currency_id');
     }
 }
