@@ -18,6 +18,7 @@ use Ry\Pim\Models\Product\VariantSupplier;
 use Ry\Pim\Models\Product\Variant;
 use Ry\Shop\Models\OrderItem;
 use Ry\Shop\Models\Price\Price;
+use Ry\Shop\Models\Delivery\CarrierZoneRate;
 
 class AffiliateController extends Controller
 {
@@ -61,8 +62,19 @@ class AffiliateController extends Controller
         foreach($arcommissions as $icommission) {
             $commissions+=floatval($icommission);
         }
-        $products = Product::with(["medias", "variants.sourcings", "categories", "variants.product"])
-        ->whereHas("variants")->where('ry_centrale_site_restrictions.setup->domain', 'marketplace')->paginate($this->perpage);
+        $query = Product::with(["medias", "variants.sourcings", "categories", "variants.product"])
+        ->whereHas("variants")->where('ry_centrale_site_restrictions.setup->domain', 'marketplace');
+        if($request->has('supplier_id')) {
+            $supplier_id = $request->get('supplier_id');
+            $query->with(['variants' => function($q)use($supplier_id){
+                $q->whereHas("suppliers", function($q)use($supplier_id){
+                    $q->where("ry_pim_suppliers.id", "=", $supplier_id);
+                });
+            }])->whereHas('variants.suppliers', function($q)use($supplier_id){
+                $q->where("ry_pim_suppliers.id", "=", $supplier_id);
+            });
+        }
+        $products = $query->paginate($this->perpage);
         $products->map(function($product)use(&$nvariants, $commissions, $arcommissions, $me, $shop_group){
             $product->append('details');
             $product->append('href');
@@ -104,23 +116,25 @@ class AffiliateController extends Controller
             }
             $option->append('form');
         });
-        return view("ldjson", array_merge([
+        return view("ldjson", [
             "type" => "products",
-            'nvariants' => $nvariants,
-            'specs_options' => Variant::getOptions(),
-            "filtered" => $filtered,
-            "categories" => $categories,
-            "filtrable_options" => $options,
-            "filtrable_categories" => [],
-            "query" => isset($ar['s'])?[
-                "s" => $ar['s']
-            ]:[],
             "view" => "Affiliate.Marketplace.Products",
             "page" => [
                 "title" => __("Liste des produits"),
                 "href" => __("/marketplace/products")
-            ]
-        ]), $products->toArray());
+            ],
+            "data" => array_merge([
+                'nvariants' => $nvariants,
+                'specs_options' => Variant::getOptions(),
+                "filtered" => $filtered,
+                "categories" => $categories,
+                "filtrable_options" => $options,
+                "filtrable_categories" => [],
+                "query" => isset($ar['s'])?[
+                    "s" => $ar['s']
+                ]:[],
+            ], $products->toArray())
+        ]);
     }
     
     public function get_product($slug, $id) {
@@ -306,6 +320,27 @@ class AffiliateController extends Controller
                 "href" => __("/marketplace/order?id=:id", ['id' => $order->id])
             ]
         ]);
+    }
+    
+    public function post_delivery_rates(Request $request) {
+        $ar = $request->all();
+        $price = 0;
+        $rates = CarrierZoneRate::with('prices')->whereCarrierId($ar['carrier_id'])->whereZoneId($ar['zone_id'])->get();
+        foreach($rates as $rate) {
+            $unit = 'Kg';
+            if(isset($rate->nsetup['from']['unit']))
+                $unit = $rate->nsetup['from']['unit'];
+            switch($unit) {
+                case 'Kg':
+                    if(isset($ar['weight']) 
+                    && $ar['weight']>=$rate->nsetup['from']['value'] 
+                    && $ar['weight']<=$rate->nsetup['to']['value']
+                    && $rate->prices()->count()>0)
+                        $price = $rate->prices->first();
+                    break;
+            }
+        }
+        return $price;
     }
 }
 ?>

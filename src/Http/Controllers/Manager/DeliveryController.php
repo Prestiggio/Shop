@@ -22,9 +22,13 @@ class DeliveryController extends Controller
     }
     
     public function get_carriers(Request $request) {
+        $carriers = Carrier::with(['medias'])->get();
+        $carriers->map(function($carrier){
+            $carrier->append('nsetup');
+        });
         return view("ldjson", [
             "view" => "Ry.Shop.Delivery.Carrier.List",
-            "data" => Carrier::with(['medias'])->get(),
+            "data" => $carriers,
             "page" => [
                 "title" => __("Liste des transporteurs"),
                 "href" => __("/shop/delivery/carriers")
@@ -56,9 +60,13 @@ class DeliveryController extends Controller
                 app("centrale")->toSite($_carrier);
             }
         }
+        $carriers = Carrier::with(['medias'])->get();
+        $carriers->map(function($carrier){
+            $carrier->append('nsetup');
+        });
         return [
             "type" => "carriers",
-            "data" => Carrier::with(['medias'])->get()
+            "data" => $carriers
         ];
     }
     
@@ -68,9 +76,13 @@ class DeliveryController extends Controller
             app("centrale")->delete($carrier);
             $carrier->delete();
         }
+        $carriers = Carrier::with(['medias'])->get();
+        $carriers->map(function($carrier){
+            $carrier->append('nsetup');
+        });
         return [
             'type' => 'carriers',
-            'data' => Carrier::with(['medias'])->get()
+            'data' => $carriers
         ];
     }
     
@@ -80,14 +92,16 @@ class DeliveryController extends Controller
         if(!$media) {
             $media = new Media();
         }
-        $media->path = 'storage/' . $request->file('file')->storePublicly('shop/delivery/carriers');
+        $media->path = 'storage/' . $request->file('file')->store('shop/delivery/carriers', env('PUBLIC_DISK', 'public'));
         $media->owner_id = $me->id;
         $media->save();
         return $media;
     }
     
     public function get_rates(Request $request) {
-        $zones = Zone::with(["centrale", "rates.carrier", "rates.prices.currency"])->get();
+        $zones = Zone::with(["centrale", "rates" => function($q){
+            $q->whereHas("carrier");
+        }, "rates.prices.currency", "rates.carrier"])->get();
         $zones->map(function($zone){
             if($zone->centrale)
                 $zone->centrale->append('nsetup');
@@ -153,7 +167,9 @@ class DeliveryController extends Controller
                 $price->save();
             }
         }
-        $zone->load(["rates.carrier", "rates.prices.currency", "centrale"]);
+        $zone->load(["rates" => function($q){
+            $q->whereHas("carrier");
+        }, "rates.carrier", "rates.prices.currency", "centrale"]);
         if($zone->centrale)
             $zone->centrale->append('nsetup');
         $zone->rates->map(function($rate){

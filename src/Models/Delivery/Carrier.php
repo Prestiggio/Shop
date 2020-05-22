@@ -11,4 +11,9 @@ class Carrier extends Model
     use HasJsonSetup, MediableTrait;
     
     protected $table = "ry_shop_carriers";
+    
+    public function rates() {
+        return $this->hasMany(CarrierZoneRate::class, 'carrier_id');
+    }
+
 }
