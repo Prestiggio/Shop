@@ -2,6 +2,7 @@
 namespace Ry\Shop\Http\Controllers;
 
 use App\Http\Controllers\Controller;
+use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Ry\Admin\Http\Traits\ActionControllerTrait;
@@ -19,6 +20,9 @@ use Ry\Pim\Models\Product\Variant;
 use Ry\Shop\Models\OrderItem;
 use Ry\Shop\Models\Price\Price;
 use Ry\Shop\Models\Delivery\CarrierZoneRate;
+use Ry\Shop\Models\Cart;
+use Ry\Geo\Models\Country;
+use Ry\Geo\Http\Controllers\PublicController as GeoController;
 
 class AffiliateController extends Controller
 {
@@ -62,8 +66,11 @@ class AffiliateController extends Controller
         foreach($arcommissions as $icommission) {
             $commissions+=floatval($icommission);
         }
-        $query = Product::with(["medias", "variants.sourcings", "categories", "variants.product"])
-        ->whereHas("variants")->where('ry_centrale_site_restrictions.setup->domain', 'marketplace');
+        $query = Product::with(["medias", "variants" => function($q){
+            $q->join("ry_shop_prices", "ry_shop_prices.priceable_id", "=", "ry_pim_product_variants.id")
+            ->wherePriceableType(Variant::class)->select("ry_pim_product_variants.*")->groupBy('ry_pim_product_variants.id');
+        }, "variants.sourcings", "categories", "variants.product"])
+        ->whereHas("variants")->where('ry_centrale_site_restrictions.setup->domain', 'marketplace')->select("ry_pim_products.*");
         if($request->has('supplier_id')) {
             $supplier_id = $request->get('supplier_id');
             $query->with(['variants' => function($q)use($supplier_id){
@@ -75,16 +82,29 @@ class AffiliateController extends Controller
             });
         }
         $products = $query->paginate($this->perpage);
-        $products->map(function($product)use(&$nvariants, $commissions, $arcommissions, $me, $shop_group){
+        $shop_commissions = [];
+        $products->map(function($product)use(&$nvariants, $commissions, $arcommissions, $me, $shop_group, &$shop_commissions){
             $product->append('details');
             $product->append('href');
-            $product->variants->map(function($item)use(&$nvariants, $commissions, $arcommissions, $me, $shop_group){
-                $prices = Price::wherePriceableType(Variant::class)->wherePriceableId($item->id)
+            $product->variants->map(function($item)use(&$nvariants, $commissions, $arcommissions, $me, $shop_group, &$shop_commissions){
+                $prices = Price::with('shop.owner')->wherePriceableType(Variant::class)->wherePriceableId($item->id)
                 ->whereHas('shop', function($q)use($shop_group){
                     $q->whereShopGroupId($shop_group->id);
-                })->get();
+                })->orderBy('price')->take(1)->get();
                 foreach($prices as $price) {
-                    $price->setAttribute('unit_price_commissionned', $price->price*(1+$commissions/100));
+                    $price->shop->owner->append('nsetup');
+                    if(!isset($shop_commissions[$price->shop_id])) {
+                        $shop_commissions[$price->shop_id] = isset($price->shop->owner->centrale->nsetup['commissions']) ? $price->shop->owner->centrale->nsetup['commissions'] : [];
+                    }
+                    $supplier_commissions = 0;
+                    foreach($shop_commissions[$price->shop_id] as $icommission) {
+                        $supplier_commissions+=floatval($icommission);
+                    }
+                    $price->setAttribute('commissions', [
+                        'affiliate' => $arcommissions,
+                        'supplier' => $shop_commissions
+                    ]);
+                    $price->setAttribute('unit_price_commissionned', $price->price*(1+($commissions+$supplier_commissions)/100));
                 }
                 $item->setAttribute('sellable_nsetup', [
                     'prices' => $prices
@@ -138,7 +158,6 @@ class AffiliateController extends Controller
     }
     
     public function get_product($slug, $id) {
-        $variant_responses = [];
         $me = app("affiliation")->getLogged();
         $arcommissions = isset($me->affiliation->details->nsetup['commissions']) ? $me->affiliation->details->nsetup['commissions'] : [];
         $commissions = 0;
@@ -148,7 +167,7 @@ class AffiliateController extends Controller
         $product = Product::with(["variants.sourcings", "medias", "categories"])->find($id);
         $product->append('details');
         $product->append('href');
-        $product->variants->map(function($item)use($variant_responses, $commissions, $arcommissions, $me){
+        $product->variants->map(function($item)use($commissions, $arcommissions, $me){
             $site = app("centrale")->getSite();
             $shop_group = ShopGroup::where('setup->site_id', $site->id)->first();
             if(!$shop_group) {
@@ -163,11 +182,12 @@ class AffiliateController extends Controller
                 $shop_group->active = $site->active;
                 $shop_group->save();
             }
-            $prices = Price::wherePriceableType(Variant::class)->wherePriceableId($item->id)
+            $prices = Price::with('shop.owner')->wherePriceableType(Variant::class)->wherePriceableId($item->id)
             ->whereHas('shop', function($q)use($shop_group){
                 $q->whereShopGroupId($shop_group->id);
             })->get();
             foreach($prices as $price) {
+                $price->shop->owner->append('nsetup');
                 $price->setAttribute('unit_price_commissionned', $price->price*(1+$commissions/100));
             }
             $item->setAttribute('sellable_nsetup', [
@@ -186,29 +206,99 @@ class AffiliateController extends Controller
         ]);
     }
     
+    public function get_billing_address(Request $request) {
+        $carts = app("affiliation")->cart();
+        if(isset($carts['mp'])) {
+            $carts['mp']->append(['nsetup']);
+            $carts['mp']->load(['billingAddress.ville.country']);
+        }
+        return view("ldjson", [
+            "view" => "Affiliate.Marketplace.Order.BillingAddress",
+            "vat" => 20,
+            "countries" => Country::all(),
+            "page" => [
+                "title" => __("Adresse de facturation"),
+                "href" => __("/marketplace/billing_address?cart_id=:cart_id", ['cart_id' => $request->get('cart_id')])
+            ]
+        ]);
+    }
+    
+    public function get_delivery_address(Request $request) {
+        $carts = app("affiliation")->cart();
+        if(isset($carts['mp'])) {
+            $carts['mp']->append(['nsetup']);
+            $carts['mp']->load(['deliveryAddress.ville.country']);
+        }
+        return view("ldjson", [
+            "view" => "Affiliate.Marketplace.Order.DeliveryAddress",
+            "vat" => 20,
+            "countries" => Country::all(),
+            "page" => [
+                "title" => __("Adresse de livraison"),
+                "href" => __("/marketplace/delivery_address?cart_id=:cart_id", ['cart_id' => $request->get('cart_id')])
+            ]
+        ]);
+    }
+    
+    public function post_cart(Request $request) {
+        $ar = $request->all();
+        $cart = Cart::find($ar['id']);
+        $cart_setup = $cart->nsetup;
+        if(isset($ar['shop'])) {
+            foreach($ar['shop'] as $shop_id => $_shop) {
+                $cart_setup['shop'][$shop_id] = $_shop['order']['nsetup'];
+                foreach($_shop['variants'] as $product_variant_id => $variant) {
+                    $sellable = $cart->items()->whereSellableId($product_variant_id)->whereSellableType(Variant::class)->find($variant['cart_sellable_id']);
+                    $sellable->quantity = $variant['quantity'];
+                    $sellable_setup = $sellable->nsetup;
+                    $sellable_setup['total_price'] = $variant['total_price'];
+                    $sellable->nsetup = $sellable_setup;
+                    $sellable->save();
+                }
+            }
+        }
+        if(isset($ar['nsetup'])) {
+            $cart_setup = array_replace_recursive($cart_setup, $ar['nsetup']);
+        }
+        if(isset($ar['billing_address'])) {
+            $cart->billing_adresse_id = app(GeoController::class)->generate($ar['billing_address'])->id;
+        }
+        if(isset($ar['delivery_address'])) {
+            $cart->delivery_adresse_id = app(GeoController::class)->generate($ar['delivery_address'])->id;
+        }
+        $cart->nsetup = $cart_setup;
+        $cart->save();
+        if($request->has('billing_address')) {
+            return redirect(__('/marketplace/delivery_address?cart_id=:cart_id', ['cart_id' => $ar['id']]));
+        }
+        if($request->has('delivery_address')) {
+            return redirect(__('/marketplace/payment?cart_id=:cart_id', ['cart_id' => $ar['id']]));
+        }
+        return redirect(__('/marketplace/billing_address?cart_id=:cart_id', ['cart_id' => $ar['id']]));
+    }
+    
+    public function get_payment(Request $request) {
+        $carts = app("affiliation")->cart();
+        if(isset($carts['mp'])) {
+            $carts['mp']->append(['nsetup']);
+        }
+        return view("ldjson", [
+            "view" => "Affiliate.Marketplace.Order.Payment",
+            "vat" => 20,
+            "page" => [
+                "href" => __("/marketplace/payment?cart_id=:cart_id", ['cart_id' => $request->get('cart_id')]),
+                "title" => __("Paiement")
+            ]
+        ]);
+    }
+    
     public function post_order(Request $request) {
         $me = app("affiliation")->getLogged();
         $ar = $request->all();
         $errors = [];
-        $site = app("centrale")->getSite();
-        
-        $shop_group = ShopGroup::where('setup->site_id', $site->id)->first();
-        if(!$shop_group) {
-            $shop_group = new ShopGroup();
-            $shop_group->name = $site->hostname;
-            $shop_group->nsetup = [
-                "site_id" => $site->id,
-                "share_customer" => true,
-                "share_order" => true,
-                "share_stock" => true
-            ];
-            $shop_group->active = $site->active;
-            $shop_group->save();
-        }
-        
         if(isset($ar['shop'])) {
             OrderItem::unguard();
-            foreach($ar['shop'] as $shop_id => $variants) {
+            foreach($ar['shop'] as $shop_id => $_shop) {
                 $shop = Shop::find($shop_id);
                 $supplier = $shop->owner;
                 $order = Order::whereBuyerType(Affiliate::class)->whereBuyerId($me->affiliation->id)
@@ -222,15 +312,19 @@ class AffiliateController extends Controller
                     $order->seller_id = $supplier->id;
                     $order->cart_id = $ar['id'];
                     $order->shop_id = $shop->id;
-                    $order->nsetup = [
-                        'type' => 'marketplace'
-                    ];
+                    $_shop['order']['nsetup']['type'] = 'marketplace';
+                    $order->nsetup = $_shop['order']['nsetup'];
                     $order->save();
                     
                     app("centrale")->toSite($order);
                 }
+                else {
+                    $order_setup = array_replace_recursive($order->nsetup, $_shop['order']['nsetup']);
+                    $order->nsetup = $order_setup;
+                    $order->save();
+                }
                 
-                foreach($variants['variants'] as $product_variant_id => $variant) {
+                foreach($_shop['variants'] as $product_variant_id => $variant) {
                     if(doubleval($variant['quantity'])<=0)
                         continue;
                     
@@ -252,7 +346,6 @@ class AffiliateController extends Controller
                         $order_item->setup = $cart_sellable->setup;
                         $order_item->save();
                     }
-                    $cart_sellable->delete();
                 }
             }
             OrderItem::reguard();
@@ -266,7 +359,7 @@ class AffiliateController extends Controller
         }
         
         app("affiliation")->releaseCart('mp');
-        return redirect(__('/marketplace/orders'))->with('message', [
+        return redirect(__('/marketplace/billing_address?cart_id=:cart_id', ['cart_id' => $ar['id']]))->with('message', [
             'content' => __("Votre commande a été enregistré avec succès."),
             'class' => 'alert-success'
         ]);
@@ -325,7 +418,7 @@ class AffiliateController extends Controller
     public function post_delivery_rates(Request $request) {
         $ar = $request->all();
         $price = 0;
-        $rates = CarrierZoneRate::with('prices')->whereCarrierId($ar['carrier_id'])->whereZoneId($ar['zone_id'])->get();
+        $rates = CarrierZoneRate::with('prices')->whereHas("zone")->whereCarrierId($ar['carrier_id'])->whereZoneId($ar['zone_id'])->get();
         foreach($rates as $rate) {
             $unit = 'Kg';
             if(isset($rate->nsetup['from']['unit']))

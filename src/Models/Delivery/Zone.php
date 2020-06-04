@@ -19,6 +19,12 @@ class Zone extends Model
         static::addGlobalScope("ranked", function($q){
             $q->orderBy(DB::raw("ry_shop_delivery_zones.setup->'$.rank'"));
         });
+        static::addGlobalScope("active", function($q){
+            $q->join("ry_centrale_site_restrictions", "ry_centrale_site_restrictions.scope_id", "=", "ry_shop_delivery_zones.id")
+            ->whereScopeType(static::class)
+            ->where("ry_centrale_site_restrictions.setup->active", false)
+            ->select("ry_shop_delivery_zones.*");
+        });
     }
     
     public function carriers() {

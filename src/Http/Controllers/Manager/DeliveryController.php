@@ -99,7 +99,7 @@ class DeliveryController extends Controller
     }
     
     public function get_rates(Request $request) {
-        $zones = Zone::with(["centrale", "rates" => function($q){
+        $zones = Zone::withoutGlobalScope("active")->with(["centrale", "rates" => function($q){
             $q->whereHas("carrier");
         }, "rates.prices.currency", "rates.carrier"])->get();
         $zones->map(function($zone){
@@ -148,6 +148,8 @@ class DeliveryController extends Controller
                     $rate_setup = array_replace_recursive($_rate->nsetup, $rate['nsetup']);
                 }
                 else {
+                    if($rate['prices'][0]['price']=='' || $rate['nsetup']['from']['value']=='')
+                        continue;
                     $_rate = new CarrierZoneRate();
                     $_rate->carrier_id = $rate['carrier_id'];
                     $_rate->zone_id = $zone->id;

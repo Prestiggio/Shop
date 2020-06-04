@@ -15,4 +15,8 @@ class CarrierZoneRate extends Model
     public function carrier() {
         return $this->belongsTo(Carrier::class, 'carrier_id');
     }
+    
+    public function zone() {
+        return $this->belongsTo(Zone::class, 'zone_id');
+    }
 }
