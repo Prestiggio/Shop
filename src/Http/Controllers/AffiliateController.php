@@ -426,7 +426,7 @@ class AffiliateController extends Controller
         $me = app("affiliation")->getLogged();
         $invoice = OrderInvoice::whereBuyerType(Affiliate::class)
         ->whereBuyerId($me->affiliation->id)
-        ->whereSellerType(Supplier::class)->with(['seller.adresse.ville.country', 'buyer.adresse.ville.country', 'buyer.users.profile', 'order.items.sellable.product.medias'])->find($request->get('id'));
+        ->whereSellerType(Supplier::class)->with(['seller.adresse.ville.country', 'buyer.adresse.ville.country', 'buyer.users.profile', 'order.items.sellable.product.medias', 'order.cart.currency'])->find($request->get('id'));
         if(!$invoice) {
             abort(404);
         }
@@ -439,19 +439,20 @@ class AffiliateController extends Controller
             $order_item->sellable->append('nsetup');
             $order_item->sellable->append('visible_specs');
         });
+        $invoice->order->setAttribute('currency', $invoice->order->cart ? $invoice->order->cart->currency : app("centrale")->getCurrency());
         $invoice->setAttribute('pdf_link', __('/marketplace/invoice?id=:id&format=:format', ['id' => $request->get('id'), 'format' => 'pdf']));
         $invoice->setAttribute('xml_link', __('/marketplace/invoice?id=:id&format=:format', ['id' => $request->get('id'), 'format' => 'xml']));
         $invoice->setAttribute('csv_link', __('/marketplace/invoice?id=:id&format=:format', ['id' => $request->get('id'), 'format' => 'csv']));
         if($request->has('format')) {
             switch($request->get('format')) {
                 default:
-                    $pdf = new \HTML2PDF();
+                    $pdf = new Html2Pdf();
                     $pdf->pdf->SetAuthor('Centrale');
                     $pdf->pdf->SetTitle('Facture ' . $invoice->code);
                     $pdf->pdf->SetSubject("Facture");
                     $pdf->setDefaultFont("Arial");
                     $pdf->writeHTML(view("ryshop::pdf", ["row" => $invoice])->render());
-                    $pdf->Output("facture-".date("Y-m-d-Hh-imn").".pdf", "D");
+                    $pdf->Output(__("facture-:code.pdf", ['code' => date("Y-m-d-Hh-imn")])/*, "D"*/);
                     break;
             }
         }
