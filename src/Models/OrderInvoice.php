@@ -4,10 +4,11 @@ namespace Ry\Shop\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Ry\Analytics\Models\Traits\LinkableTrait;
+use Ry\Admin\Models\Traits\HasJsonSetup;
 
 class OrderInvoice extends Model
 {
-	use LinkableTrait;
+	use LinkableTrait, HasJsonSetup;
 	
     protected $table = "ry_shop_order_invoices";
     

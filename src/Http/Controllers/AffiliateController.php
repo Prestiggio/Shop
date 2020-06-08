@@ -23,6 +23,7 @@ use Ry\Shop\Models\Delivery\CarrierZoneRate;
 use Ry\Shop\Models\Cart;
 use Ry\Geo\Models\Country;
 use Ry\Geo\Http\Controllers\PublicController as GeoController;
+use Ry\Shop\Models\OrderInvoice;
 
 class AffiliateController extends Controller
 {
@@ -248,7 +249,7 @@ class AffiliateController extends Controller
             foreach($ar['shop'] as $shop_id => $_shop) {
                 $cart_setup['shop'][$shop_id] = $_shop['order']['nsetup'];
                 foreach($_shop['variants'] as $product_variant_id => $variant) {
-                    $sellable = $cart->items()->whereSellableId($product_variant_id)->whereSellableType(Variant::class)->find($variant['cart_sellable_id']);
+                    $sellable = $cart->items()->whereShopId($shop_id)->whereSellableId($product_variant_id)->whereSellableType(Variant::class)->find($variant['cart_sellable_id']);
                     $sellable->quantity = $variant['quantity'];
                     $sellable_setup = $sellable->nsetup;
                     $sellable_setup['total_price'] = $variant['total_price'];
@@ -278,13 +279,22 @@ class AffiliateController extends Controller
     }
     
     public function get_payment(Request $request) {
+        $me = app("affiliation")->getLogged();
         $carts = app("affiliation")->cart();
+        $carrier_rates = CarrierZoneRate::with('prices')
+        ->whereHas("zone")
+        ->whereHas("carrier")
+        ->whereZoneId($me->affiliation->delivery_zone->id)->get();
+        $carrier_rates->map(function($carrier_rate){
+            $carrier_rate->append('nsetup');
+        });
         if(isset($carts['mp'])) {
             $carts['mp']->append(['nsetup']);
         }
         return view("ldjson", [
             "view" => "Affiliate.Marketplace.Order.Payment",
             "vat" => 20,
+            "carrier_rates" => $carrier_rates,
             "page" => [
                 "href" => __("/marketplace/payment?cart_id=:cart_id", ['cart_id' => $request->get('cart_id')]),
                 "title" => __("Paiement")
@@ -294,7 +304,9 @@ class AffiliateController extends Controller
     
     public function post_order(Request $request) {
         $me = app("affiliation")->getLogged();
-        $ar = $request->all();
+        $carts = app("affiliation")->cart();
+        $cart = $carts['mp'];
+        $ar = $cart->nsetup;
         $errors = [];
         if(isset($ar['shop'])) {
             OrderItem::unguard();
@@ -302,7 +314,7 @@ class AffiliateController extends Controller
                 $shop = Shop::find($shop_id);
                 $supplier = $shop->owner;
                 $order = Order::whereBuyerType(Affiliate::class)->whereBuyerId($me->affiliation->id)
-                ->whereSellerType(Supplier::class)->whereSellerId($supplier->id)->whereCartId($ar['id'])
+                ->whereSellerType(Supplier::class)->whereSellerId($supplier->id)->whereCartId($cart->id)
                 ->whereShopId($shop->id)->first();
                 if(!$order) {
                     $order = new Order();
@@ -310,39 +322,55 @@ class AffiliateController extends Controller
                     $order->buyer_id = $me->affiliation->id;
                     $order->seller_type = Supplier::class;
                     $order->seller_id = $supplier->id;
-                    $order->cart_id = $ar['id'];
+                    $order->cart_id = $cart->id;
                     $order->shop_id = $shop->id;
-                    $_shop['order']['nsetup']['type'] = 'marketplace';
-                    $order->nsetup = $_shop['order']['nsetup'];
+                    $order->nsetup = $_shop;
                     $order->save();
                     
                     app("centrale")->toSite($order);
                 }
                 else {
-                    $order_setup = array_replace_recursive($order->nsetup, $_shop['order']['nsetup']);
-                    $order->nsetup = $order_setup;
+                    $order->nsetup = array_replace_recursive($order->nsetup, $_shop);
                     $order->save();
                 }
                 
-                foreach($_shop['variants'] as $product_variant_id => $variant) {
-                    if(doubleval($variant['quantity'])<=0)
+                $invoice = $order->invoices()
+                ->whereBuyerType(Affiliate::class)
+                ->whereBuyerId($me->affiliation->id)
+                ->whereSellerType(Supplier::class)
+                ->whereSellerId($supplier->id)->first();
+                if(!$invoice) {
+                    $invoice = new OrderInvoice();
+                    $invoice->order_id = $order->id;
+                    $invoice->buyer_type = Affiliate::class;
+                    $invoice->buyer_id = $me->affiliation->id;
+                    $invoice->seller_type = Supplier::class;
+                    $invoice->seller_id = $supplier->id;
+                }
+                $invoice->quantity = 1;
+                $invoice->total_price = $order->nsetup['total_ttc'];
+                $invoice->setup = $order->setup;
+                $invoice->save();
+                
+                $cart_sellables = $cart->items()->whereShopId($shop_id)->get();
+                
+                foreach($cart_sellables as $cart_sellable) {
+                    if($cart_sellable->quantity<=0)
                         continue;
                     
-                    $cart_sellable = CartSellable::find($variant['cart_sellable_id']);
-                    
-                    $order_item = $order->items()->whereSellableType(Variant::class)->whereSellableId($product_variant_id)->first();
+                    $order_item = $order->items()->whereSellableType(Variant::class)->whereSellableId($cart_sellable->sellable_id)->first();
                     if(!$order_item) {
                         $order_item = $order->items()->create([
                             'sellable_type' => Variant::class,
-                            'sellable_id' => $product_variant_id,
-                            'quantity' => $variant['quantity'],
-                            'price' => $variant['total_price'],
+                            'sellable_id' => $cart_sellable->sellable_id,
+                            'quantity' => $cart_sellable->quantity,
+                            'price' => $cart_sellable->nsetup['total_price'],
                             'setup' => $cart_sellable->setup
                         ]);
                     }
                     else {
-                        $order_item->quantity = $variant['quantity'];
-                        $order_item->price = $variant['total_price'];
+                        $order_item->quantity = $cart_sellable->quantity;
+                        $order_item->price = $cart_sellable->nsetup['total_price'];
                         $order_item->setup = $cart_sellable->setup;
                         $order_item->save();
                     }
@@ -359,9 +387,88 @@ class AffiliateController extends Controller
         }
         
         app("affiliation")->releaseCart('mp');
-        return redirect(__('/marketplace/billing_address?cart_id=:cart_id', ['cart_id' => $ar['id']]))->with('message', [
-            'content' => __("Votre commande a été enregistré avec succès."),
+        return redirect(__('/marketplace/invoices?cart_id=:cart_id', ['cart_id' => $cart->id]))->with('message', [
+            'content' => __("Votre commande a été enregistré avec succès. Nous allons vous recontacter pour le mode de règlement de votre facture."),
             'class' => 'alert-success'
+        ]);
+    }
+    
+    public function get_invoices(Request $request) {
+        $me = app("affiliation")->getLogged();
+        $query = OrderInvoice::whereBuyerType(Affiliate::class)
+        ->whereBuyerId($me->affiliation->id)
+        ->whereSellerType(Supplier::class)
+        ->with('order.items');
+        if($request->has('cart_id')) {
+            $cart_id = $request->get('cart_id');
+            $query->whereHas('order.cart', function($q)use($cart_id){
+                $q->whereCartId($cart_id);
+            });
+        }
+        $invoices = $query->paginate($this->perpage);
+        $invoices->map(function($invoice){
+            $invoice->append('nsetup');
+            $code = 'MP ' . $invoice->created_at->format('Y') . '-' . $invoice->id;
+            $invoice->setAttribute('code', $code);
+        });
+        return view("ldjson", [
+            "view" => "Affiliate.Marketplace.Order.Invoice.List",
+            "data" => $invoices,
+            "type" => "invoice",
+            "page" => [
+                "href" => __('/marketplace/invoices?cart_id=:cart_id', ['cart_id' => $request->get('cart_id')]),
+                "title" => __("Paiement demandé")
+            ]
+        ]);
+    }
+    
+    public function get_invoice(Request $request) {
+        $me = app("affiliation")->getLogged();
+        $invoice = OrderInvoice::whereBuyerType(Affiliate::class)
+        ->whereBuyerId($me->affiliation->id)
+        ->whereSellerType(Supplier::class)->with(['seller.adresse.ville.country', 'buyer.adresse.ville.country', 'buyer.users.profile', 'order.items.sellable.product.medias'])->find($request->get('id'));
+        if(!$invoice) {
+            abort(404);
+        }
+        $invoice->append('nsetup');
+        $code = 'MP ' . $invoice->created_at->format('Y') . '-' . $invoice->id;
+        $invoice->setAttribute('code', $code);
+        $invoice->order->setAttribute('code', 'MP ' . $invoice->order->created_at->format('Y-m') . '-' . sprintf('%4d', $invoice->order->id));
+        $invoice->order->items->map(function($order_item){
+            $order_item->append('nsetup');
+            $order_item->sellable->append('nsetup');
+            $order_item->sellable->append('visible_specs');
+        });
+        $invoice->setAttribute('pdf_link', __('/marketplace/invoice?id=:id&format=:format', ['id' => $request->get('id'), 'format' => 'pdf']));
+        $invoice->setAttribute('xml_link', __('/marketplace/invoice?id=:id&format=:format', ['id' => $request->get('id'), 'format' => 'xml']));
+        $invoice->setAttribute('csv_link', __('/marketplace/invoice?id=:id&format=:format', ['id' => $request->get('id'), 'format' => 'csv']));
+        if($request->has('format')) {
+            switch($request->get('format')) {
+                default:
+                    $pdf = new \HTML2PDF();
+                    $pdf->pdf->SetAuthor('Centrale');
+                    $pdf->pdf->SetTitle('Facture ' . $invoice->code);
+                    $pdf->pdf->SetSubject("Facture");
+                    $pdf->setDefaultFont("Arial");
+                    $pdf->writeHTML(view("ryshop::pdf", ["row" => $invoice])->render());
+                    $pdf->Output("facture-".date("Y-m-d-Hh-imn").".pdf", "D");
+                    break;
+            }
+        }
+        return view("ldjson", [
+            "view" => "Affiliate.Marketplace.Order.Invoice.Detail",
+            "vat" => 20,
+            "data" => $invoice,
+            "parents" => [
+                [
+                    "href" => __("/marketplace/invoices"),
+                    "title" => __("Tous vos factures")
+                ]
+            ],
+            "page" => [
+                "href" => __("/marketplace/invoice?id=:id", ['id' => $request->get('id')]),
+                "title" => __("Facture Nº:id", ["id" => $invoice->code])
+            ]
         ]);
     }
     

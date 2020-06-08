@@ -56,7 +56,8 @@ class Controller extends BaseController
     public function detail(Request $request) {
         $permission = Permission::authorize(__METHOD__);
         $order = Order::with(['buyer.adresse.ville.country', 'buyer.contacts', 'seller', 'items.sellable.product.medias'])->find($request->get('id'));
-        $order->setAttribute('operation', QuotesRequestGroup::find($order->nsetup['operation_id']));
+        if(isset($order->nsetup['operation_id']))
+            $order->setAttribute('operation', QuotesRequestGroup::find($order->nsetup['operation_id']));
         $order->append('nsetup');
         $order->items->each(function($item){
             $item->append('nsetup');
