@@ -22,7 +22,7 @@ class Zone extends Model
         static::addGlobalScope("active", function($q){
             $q->join("ry_centrale_site_restrictions", "ry_centrale_site_restrictions.scope_id", "=", "ry_shop_delivery_zones.id")
             ->whereScopeType(static::class)
-            ->where("ry_centrale_site_restrictions.setup->active", false)
+            ->where("ry_centrale_site_restrictions.setup->active", true)
             ->select("ry_shop_delivery_zones.*");
         });
     }

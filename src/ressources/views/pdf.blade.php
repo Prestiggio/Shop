@@ -146,7 +146,7 @@
     			    return $it['functions'] == 'uci';
     			});
     			    if(count($ucis)>0) {
-    			        $uci = $ucis[0]['option'];
+    			        $uci = array_values($ucis)[0]['option'];
     			    }
     			    echo $uci;
     			?></td>

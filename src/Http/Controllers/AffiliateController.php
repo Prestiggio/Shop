@@ -73,7 +73,10 @@ class AffiliateController extends Controller
             $q->join("ry_shop_prices", "ry_shop_prices.priceable_id", "=", "ry_pim_product_variants.id")
             ->wherePriceableType(Variant::class)->select("ry_pim_product_variants.*")->groupBy('ry_pim_product_variants.id');
         }, "variants.sourcings", "categories", "variants.product"])
-        ->whereHas("variants")->where('ry_centrale_site_restrictions.setup->domain', 'marketplace')->select("ry_pim_products.*");
+        ->whereHas("variants", function($q){
+            return $q->join("ry_shop_prices", "ry_shop_prices.priceable_id", "=", "ry_pim_product_variants.id")
+            ->wherePriceableType(Variant::class)->groupBy('ry_pim_product_variants.id');
+        })->where('ry_centrale_site_restrictions.setup->domain', 'marketplace')->select("ry_pim_products.*");
         if($request->has('supplier_id')) {
             $supplier_id = $request->get('supplier_id');
             $query->with(['variants' => function($q)use($supplier_id){
@@ -452,7 +455,8 @@ class AffiliateController extends Controller
                     $currency_formatter = new \NumberFormatter('fr-FR', \NumberFormatter::CURRENCY);
                     $pdf = new Mpdf([
                         'debug' => env('APP_DEBUG'),
-                        'defaultCssFile' => public_path('css/pdf.css')
+                        'defaultCssFile' => public_path('css/pdf.css'),
+                        'tempDir' => storage_path('tmp')
                     ]);
                     $pdf->SetAuthor('Centrale');
                     $pdf->SetTitle('Facture ' . $invoice->code);
