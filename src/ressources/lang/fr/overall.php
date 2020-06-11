@@ -22,5 +22,6 @@ return [
 		"payment" => [
 				"mode" => "Mode de paiement"
 		],
-		"address" => "Votre adresse de facturation"
+		"address" => "Votre adresse de facturation",
+    "to" => "À"
 ];

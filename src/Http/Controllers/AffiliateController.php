@@ -24,6 +24,8 @@ use Ry\Shop\Models\Cart;
 use Ry\Geo\Models\Country;
 use Ry\Geo\Http\Controllers\PublicController as GeoController;
 use Ry\Shop\Models\OrderInvoice;
+use Spipu\Html2Pdf\Html2Pdf;
+use Mpdf\Mpdf;
 
 class AffiliateController extends Controller
 {
@@ -446,13 +448,23 @@ class AffiliateController extends Controller
         if($request->has('format')) {
             switch($request->get('format')) {
                 default:
-                    $pdf = new Html2Pdf();
-                    $pdf->pdf->SetAuthor('Centrale');
-                    $pdf->pdf->SetTitle('Facture ' . $invoice->code);
-                    $pdf->pdf->SetSubject("Facture");
+                    $formatter = new \NumberFormatter('fr-FR', \NumberFormatter::DECIMAL);
+                    $currency_formatter = new \NumberFormatter('fr-FR', \NumberFormatter::CURRENCY);
+                    $pdf = new Mpdf([
+                        'debug' => env('APP_DEBUG'),
+                        'defaultCssFile' => public_path('css/pdf.css')
+                    ]);
+                    $pdf->SetAuthor('Centrale');
+                    $pdf->SetTitle('Facture ' . $invoice->code);
+                    $pdf->SetSubject("Facture");
                     $pdf->setDefaultFont("Arial");
-                    $pdf->writeHTML(view("ryshop::pdf", ["row" => $invoice])->render());
-                    $pdf->Output(__("facture-:code.pdf", ['code' => date("Y-m-d-Hh-imn")])/*, "D"*/);
+                    $pdf->writeHTML(view("ryshop::pdf", [
+                        "row" => $invoice,
+                        "f" => $formatter,
+                        "f2" => $currency_formatter,
+                        "vat" => 20
+                    ])->render());
+                    return $pdf->Output(__("facture-:code.pdf", ['code' => date("Y-m-d-Hh-imn")]), 'D');
                     break;
             }
         }

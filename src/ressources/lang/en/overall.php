@@ -3,5 +3,6 @@ return [
 		"cart" => [
 				"add" => "Add to cart"
 		],
-		"free" => "Free"
+		"free" => "Free",
+    "to" => "À"
 ];
