@@ -45,6 +45,10 @@ class AffiliateController extends Controller
         }
     }
     
+    public function post_products(Request $request) {
+        return $this->get_products($request);
+    }
+    
     public function get_products(Request $request) {
         $ar = $request->all();
         $me = app("affiliation")->getLogged();
@@ -63,7 +67,6 @@ class AffiliateController extends Controller
             $shop_group->active = $site->active;
             $shop_group->save();
         }
-        $nvariants = 0;
         $arcommissions = isset($me->affiliation->details->nsetup['commissions']) ? $me->affiliation->details->nsetup['commissions'] : [];
         $commissions = 0;
         foreach($arcommissions as $icommission) {
@@ -87,19 +90,146 @@ class AffiliateController extends Controller
                 $q->where("ry_pim_suppliers.id", "=", $supplier_id);
             });
         }
-        $products = $query->paginate($this->perpage);
         $shop_commissions = [];
+        $filtered = isset($ar['s']['options']);
+        $categories = Categorie::cacheGroup('product', $site->id)->filter(function($item){
+            return $item->active;
+        });
+        $options = Option::where('ry_pim_product_options.setup->in_filter', true)->get();
+        $options->map(function(&$option)use($ar){
+            $form = $option->form;
+            if(isset($form['options']) && $form['options'] instanceof Collection) {
+                Categorie::attributeAll($form['options'], ['show' => false]);
+                $ids = Variant::whereHas("product", function($q)use($ar){
+                    $q->where('ry_centrale_site_restrictions.setup->domain', 'marketplace');
+                    if(isset($ar['s']['categories']['category']['parent']) && $ar['s']['categories']['category']['parent']>0) {
+                        $q->whereHas('categories.category.parent', function($q)use($ar){
+                            $q->whereParentId($ar['s']['categories']['category']['parent']);
+                        });
+                    }
+                    if(isset($ar['s']['q']) && $ar['s']['q']!='') {
+                        $q->where('name', 'LIKE', '%'.$ar['s']['q'].'%');
+                    }
+                })->selectRaw("DISTINCT(JSON_UNQUOTE(
+                        JSON_EXTRACT(
+                            JSON_EXTRACT(setup, JSON_UNQUOTE(
+                                                    REPLACE(JSON_SEARCH(setup, 'one', '{$option->name}'), '.option', ''))),
+                         '$.id'))) AS d")->pluck("d")->toArray();
+                Categorie::attributeByIds($form['options'], $ids, ['show' => true]);
+                if(isset($ar['s']['options'][$option->name]) && count($ar['s']['options'][$option->name])) {
+                    Categorie::attributeByIds($form['options'], $ar['s']['options'][$option->name], ['selected' => true]);
+                }
+                $option->form = $form;
+            }
+            $option->append('form');
+        });
+        if(isset($ar['s'])) {
+            if(isset($ar['s']['q'])) {
+                $query->where('name', 'LIKE', '%'.$ar['s']['q'].'%');
+            }
+            if(isset($ar['s']['categories']['category']['parent'])) {
+                $query->whereHas('categories.category.parent', function($q)use($ar){
+                    $q->whereParentId($ar['s']['categories']['category']['parent']);
+                });
+            }
+            
+            //select of filters to show
+            foreach($options as $option) { //option represents a column
+                $form = $option->form;
+                if(!isset($form['options']))
+                    continue;
+                    
+                $option_categories = $form['options'];
+                //the scoped column is skipped
+                if($ar['scope']==$option->name) {
+                    Categorie::attributeAll($option_categories, ['show' => false]);
+                    if(isset($ar['s']['visible_options'][$option->name]) && count($ar['s']['visible_options'][$option->name])) {
+                        Categorie::attributeByIds($option_categories, $ar['s']['visible_options'][$option->name], ['show' => true]);
+                    }
+                    $option->form = $form;
+                    continue;
+                }
+                
+                //get the condition for that column
+                $wheres = [];
+                if(isset($ar['s']['options'])) {
+                    foreach (array_except($ar['s']['options'], $option->name) as $option_name => $values) {
+                        if(count($values)==0)
+                            continue;
+                            
+                        $wheres[] = "(JSON_UNQUOTE(
+                JSON_EXTRACT(
+                JSON_EXTRACT(ry_pim_product_variants.setup, JSON_UNQUOTE(
+                                        REPLACE(
+                                            JSON_SEARCH(ry_pim_product_variants.setup, 'one', '$option_name'), '.option', ''))),
+             '$.id')) IN (".implode(",", $values)."))";
+                    }
+                }
+                
+                if(count($wheres)) {
+                    //hide everything in the column
+                    Categorie::attributeAll($option_categories, ['show' => false]);
+                    //get the IDs of values to show in that column
+                    $ids = Variant::whereHas("product", function($q)use($ar){
+                        $q->where('ry_centrale_site_restrictions.setup->domain', 'marketplace');
+                        if(isset($ar['s']['categories']['category']['parent']) && $ar['s']['categories']['category']['parent']>0) {
+                            $q->whereHas('categories.category.parent', function($q)use($ar){
+                                $q->whereParentId($ar['s']['categories']['category']['parent']);
+                            });
+                        }
+                        if(isset($ar['s']['q']) && $ar['s']['q']!='') {
+                            $q->where('name', 'LIKE', '%'.$ar['s']['q'].'%');
+                        }
+                    })
+                    ->whereRaw(implode(" AND ", $wheres))->selectRaw("DISTINCT(JSON_UNQUOTE(
+                JSON_EXTRACT(
+                    JSON_EXTRACT(ry_pim_product_variants.setup, JSON_UNQUOTE(
+                                            REPLACE(JSON_SEARCH(ry_pim_product_variants.setup, 'one', '{$option->name}'), '.option', ''))),
+                 '$.id'))) AS d")->pluck("d")->toArray();
+                    //show only those filtered
+                    $debug['rtosisa'][$option->name] = $ids;
+                    $debug['wheres'][$option->name] = $wheres;
+                    Categorie::attributeByIds($option_categories, array_filter($ids, function($i){
+                        return $i!=null && $i>0;
+                    }), ['show' => true]);
+                }
+                $option->form = $form;
+            }
+            //select of products to list
+            if(isset($ar['s']['options'])) {
+                $query->whereHas('variants', function($q)use($ar){
+                    foreach($ar['s']['options'] as $option_name => $values) {
+                        $q->where(function($q)use($values, $option_name){
+                            foreach($values as $v)
+                                $q->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(JSON_EXTRACT(ry_pim_product_variants.setup, JSON_UNQUOTE(REPLACE(JSON_SEARCH(ry_pim_product_variants.setup, 'one', '".$option_name."'), '.option', ''))), '$.id')) = ?", [$v]);
+                        });
+                    }
+                });
+            }
+            if(isset($ar['s']['categories'])) {
+                $query->whereHas('categories', function($q)use($ar){
+                    $q->where(function($q)use($ar){
+                        foreach($ar['s']['categories'] as $v) {
+                            if(is_numeric($v))
+                                $q->orWhere('categorie_id', '=', $v);
+                        }
+                    });
+                });
+            }
+        }
+        $products = $query->paginate($this->perpage);
+        $nvariants = 0;
         $products->map(function($product)use(&$nvariants, $commissions, $arcommissions, $me, $shop_group, &$shop_commissions){
             $product->append('details');
             $product->append('href');
             $product->variants->map(function($item)use(&$nvariants, $commissions, $arcommissions, $me, $shop_group, &$shop_commissions){
-                $prices = Price::with('shop.owner')->wherePriceableType(Variant::class)->wherePriceableId($item->id)
+                $prices = Price::wherePriceableType(Variant::class)->wherePriceableId($item->id)
                 ->whereHas('shop', function($q)use($shop_group){
                     $q->whereShopGroupId($shop_group->id);
                 })->orderBy('price')->take(1)->get();
                 foreach($prices as $price) {
-                    $price->shop->owner->append('nsetup');
                     if(!isset($shop_commissions[$price->shop_id])) {
+                        $price->shop->owner->append('nsetup');
                         $shop_commissions[$price->shop_id] = isset($price->shop->owner->centrale->nsetup['commissions']) ? $price->shop->owner->centrale->nsetup['commissions'] : [];
                     }
                     $supplier_commissions = 0;
@@ -121,27 +251,23 @@ class AffiliateController extends Controller
             });
         });
         $filtered = isset($ar['s']['options']);
-        $categories = Categorie::cacheGroup('product', $site->id)->filter(function($item){
-            return $item->active;
-        });
-        $options = Option::where('ry_pim_product_options.setup->in_filter', true)->get();
-        $options->map(function(&$option)use($ar){
-            $form = $option->form;
-            if(isset($form['options']) && $form['options'] instanceof Collection) {
-                Categorie::attributeAll($form['options'], ['show' => false]);
-                $ids = Variant::selectRaw("DISTINCT(JSON_UNQUOTE(
-                        JSON_EXTRACT(
-                            JSON_EXTRACT(setup, JSON_UNQUOTE(
-                                                    REPLACE(JSON_SEARCH(setup, 'one', '{$option->name}'), '.option', ''))),
-                         '$.id'))) AS d")->pluck("d")->toArray();
-                Categorie::attributeByIds($form['options'], $ids, ['show' => true]);
-                if(isset($ar['s']['options'][$option->name]) && count($ar['s']['options'][$option->name])) {
-                    Categorie::attributeByIds($form['options'], $ar['s']['options'][$option->name], ['selected' => true]);
-                }
-                $option->form = $form;
+        $categories = Categorie::whereHas('children.children', function($q)use($site){
+            $q->join('ry_categories_categorizables', 'ry_categories_categorizables.categorie_id', '=', 'ry_categories_categories.id')
+            ->join('ry_centrale_site_restrictions', 'ry_centrale_site_restrictions.scope_id', '=', 'ry_categories_categorizables.categorizable_id')
+            ->where('categorizable_type', '=', Product::class)
+            ->where('ry_centrale_site_restrictions.scope_type', '=', Product::class)
+            ->where('ry_centrale_site_restrictions.site_id', '=', $site->id);
+        })->whereActive(true)->get();
+        if($filtered) {
+            if(isset($ar['s']['categories'])) {
+                Categorie::attributeByIds($categories, array_prepend($ar['s']['categories'], $ar['s']['categories']['category']['parent']), ['selected' => true]);
             }
-            $option->append('form');
-        });
+        }
+        else {
+            if(isset($ar['s']['categories']['category']['parent'])) {
+                Categorie::attributeByIds($categories, [$ar['s']['categories']['category']['parent']], ['selected' => true]);
+            }
+        }
         return view("ldjson", [
             "type" => "products",
             "view" => "Affiliate.Marketplace.Products",
