@@ -225,8 +225,8 @@ class AffiliateController extends Controller
                     $q->whereShopGroupId($shop_group->id);
                 })->orderBy('price')->take(1)->get();
                 foreach($prices as $price) {
+                    $price->shop->owner->append('nsetup');
                     if(!isset($shop_commissions[$price->shop_id])) {
-                        $price->shop->owner->append('nsetup');
                         $shop_commissions[$price->shop_id] = isset($price->shop->owner->centrale->nsetup['commissions']) ? $price->shop->owner->centrale->nsetup['commissions'] : [];
                     }
                     $supplier_commissions = 0;
