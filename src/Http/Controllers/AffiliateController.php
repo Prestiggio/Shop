@@ -92,15 +92,12 @@ class AffiliateController extends Controller
         }
         $shop_commissions = [];
         $filtered = isset($ar['s']['options']);
-        $categories = Categorie::cacheGroup('product', $site->id)->filter(function($item){
-            return $item->active;
-        });
         $options = Option::where('ry_pim_product_options.setup->in_filter', true)->get();
         $options->map(function(&$option)use($ar){
             $form = $option->form;
             if(isset($form['options']) && $form['options'] instanceof Collection) {
                 Categorie::attributeAll($form['options'], ['show' => false]);
-                $ids = Variant::whereHas("product", function($q)use($ar){
+                $ids = Variant::join('ry_shop_prices', 'ry_shop_prices.priceable_id', '=', 'ry_pim_product_variants.id')->whereHas("product", function($q)use($ar){
                     $q->where('ry_centrale_site_restrictions.setup->domain', 'marketplace');
                     if(isset($ar['s']['categories']['category']['parent']) && $ar['s']['categories']['category']['parent']>0) {
                         $q->whereHas('categories.category.parent', function($q)use($ar){
@@ -112,8 +109,8 @@ class AffiliateController extends Controller
                     }
                 })->selectRaw("DISTINCT(JSON_UNQUOTE(
                         JSON_EXTRACT(
-                            JSON_EXTRACT(setup, JSON_UNQUOTE(
-                                                    REPLACE(JSON_SEARCH(setup, 'one', '{$option->name}'), '.option', ''))),
+                            JSON_EXTRACT(ry_pim_product_variants.setup, JSON_UNQUOTE(
+                                                    REPLACE(JSON_SEARCH(ry_pim_product_variants.setup, 'one', '{$option->name}'), '.option', ''))),
                          '$.id'))) AS d")->pluck("d")->toArray();
                 Categorie::attributeByIds($form['options'], $ids, ['show' => true]);
                 if(isset($ar['s']['options'][$option->name]) && count($ar['s']['options'][$option->name])) {
@@ -254,10 +251,13 @@ class AffiliateController extends Controller
         $categories = Categorie::whereHas('children.children', function($q)use($site){
             $q->join('ry_categories_categorizables', 'ry_categories_categorizables.categorie_id', '=', 'ry_categories_categories.id')
             ->join('ry_centrale_site_restrictions', 'ry_centrale_site_restrictions.scope_id', '=', 'ry_categories_categorizables.categorizable_id')
+            ->join("ry_pim_product_variants", "ry_pim_product_variants.product_id", "=", "ry_categories_categorizables.categorizable_id")
+            ->join("ry_shop_prices", "ry_shop_prices.priceable_id", "=", "ry_pim_product_variants.id")
             ->where('categorizable_type', '=', Product::class)
             ->where('ry_centrale_site_restrictions.scope_type', '=', Product::class)
-            ->where('ry_centrale_site_restrictions.site_id', '=', $site->id);
-        })->whereActive(true)->get();
+            ->where('ry_centrale_site_restrictions.site_id', '=', $site->id)
+            ->where('ry_centrale_site_restrictions.setup->domain', 'marketplace');
+        })->where('ry_categories_categories.active', '=', true)->get();
         if($filtered) {
             if(isset($ar['s']['categories'])) {
                 Categorie::attributeByIds($categories, array_prepend($ar['s']['categories'], $ar['s']['categories']['category']['parent']), ['selected' => true]);
