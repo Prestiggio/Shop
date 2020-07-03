@@ -25,7 +25,7 @@ class DeliveryController extends Controller
     public function get_rates(Request $request) {
         $zones = Zone::with(["centrale", "rates" => function($q){
             $q->whereHas("carrier");
-        }, "rates.prices.currency", "rates.carrier"])->get();
+        }, "rates.prices.currency", "rates.carrier"])->groupBy("ry_shop_delivery_zones.id")->get();
         $zones->map(function($zone){
             if($zone->centrale)
                 $zone->centrale->append('nsetup');
