@@ -1,12 +1,6 @@
 <page orientation="p" format="A4" footer="page;date;time" backtop="20mm" backbottom="60mm">
 	<page_header>
-		@if($row->order->cart->customer->owner->thumb)
-		<img alt="{{$row->order->cart->customer->owner->name}}" src="{{$row->order->cart->customer->owner->thumb}}" class="fleft" style="max-width: 40mm;">
-		@endif
-		@if($row->order->shop->thumb)
-		<img alt="{{$row->order->shop->name}}" src="{{$row->order->shop->thumb}}" class="fright" style="max-width: 40mm;">
-		@endif
-		<div class="clear"></div>
+		
 	</page_header>
 	<page_footer>
 		
@@ -30,76 +24,76 @@
 				<table class="table table-align-top">
 					<tbody>
 						<tr>
-							<th class="text-right">
+							<th class="text-right py-0">
 								@lang("Date") :
 							</th>
-							<td>
+							<td class="py-0">
 								{{$row->created_at->format('d/m/Y')}}
 							</td>
 						</tr>
 						<tr>
-							<th class="text-right">
+							<th class="text-right py-0">
 								@lang("Commande Nº") : 
 							</th>
-							<td>
+							<td class="py-0">
 								{{$row->order->code}}
 							</td>
 						</tr>
 						<tr>
-							<th class="text-right">
+							<th class="text-right py-0">
 								@lang("Echéance") :
 							</th>
-							<td>
+							<td class="py-0">
 								{{$row->created_at->add(2, 'week')->format('d/m/Y')}}
 							</td>
 						</tr>
 						<tr>
-							<th class="text-right">
+							<th class="text-right py-0">
 								@lang("Bénéficiaire") :
 							</th>
-							<td>
+							<td class="py-0">
 								{{$row->order->shop->name}}
 							</td>
 						</tr>
 						<tr>
-							<th class="text-right">
+							<th class="text-right py-0">
 								@lang("Adresse") :
 							</th>
-							<td>
+							<td class="py-0">
 								{!! $row->order->shop->owner->completeAddress !!}
 							</td>
 						</tr>
 						@if($row->order->shop->owner->rib)
 						<tr>
-							<th class="text-right">
+							<th class="text-right py-0">
 								@lang("IBAN") :
 							</th>
-							<td>
+							<td class="py-0">
 								{{$row->order->shop->owner->rib->iban}}
 							</td>
 						</tr>
 						<tr>
-							<th class="text-right">
+							<th class="text-right py-0">
 								@lang("BIC") :
 							</th>
-							<td>
+							<td class="py-0">
 								{{$row->order->shop->owner->rib->bic}}
 							</td>
 						</tr>
 						<tr>
-							<th class="text-right">
+							<th class="text-right py-0">
 								@lang("SWIFT") :
 							</th>
-							<td>
+							<td class="py-0">
 								{{$row->order->shop->owner->rib->swift}}
 							</td>
 						</tr>
 						@endif
 						<tr>
-							<th class="text-right">
+							<th class="text-right py-0">
 								@lang("Contacts") : 
 							</th>
-							<td>
+							<td class="py-0">
 								{!! $row->order->shop->owner->completeContacts !!}
 							</td>
 						</tr>
@@ -110,7 +104,7 @@
 	</table>
 	<br/>
 	<br/>
-	<table class="table table-bc border-left-0">
+	<table class="table table-bc border-left-0 table-align-top">
 		<tbody class="table-bordered">
     		<tr class="bg-light">
     			<th style="width: 10%;">@lang("Quantité")</th>
@@ -155,11 +149,11 @@
     				echo $f2->format($item->nsetup['prices'][0]['unit_price_commissionned']);
     			?>
     			</td>
-    			<td class="text-right">
+    			<th class="text-right">
     			<?php 
     			$total_ht += ($item->nsetup['prices'][0]['unit_price_commissionned']*$item->quantity);
     			echo $f2->format($item->nsetup['prices'][0]['unit_price_commissionned']*$item->quantity); ?>
-    			</td>
+    			</th>
     		</tr>
     		<?php $i++; ?>
     		@endforeach
