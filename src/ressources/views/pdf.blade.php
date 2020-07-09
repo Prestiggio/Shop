@@ -117,6 +117,12 @@
     		$total_ht = 0;
     		?>
     		@foreach($row->order->items as $item)
+    		<?php 
+    		$setup = $item->nsetup;
+    		$price = array_values(array_filter($item->nsetup['prices'], function($it)use($setup){
+    		    return $it['shop_id'] == $setup['shop_id'];
+    		}))[0];
+    		?>
     		<tr>
     			<td class="text-right">{{$f->format($item->quantity)}}</td>
     			<td>
@@ -146,13 +152,13 @@
     			?></td>
     			<td class="text-right">
     				<?php
-    				echo $f2->format($item->nsetup['prices'][0]['unit_price_commissionned']);
+    				echo $f2->format($price['unit_price_commissionned']);
     			?>
     			</td>
     			<th class="text-right">
     			<?php 
-    			$total_ht += ($item->nsetup['prices'][0]['unit_price_commissionned']*$item->quantity);
-    			echo $f2->format($item->nsetup['prices'][0]['unit_price_commissionned']*$item->quantity); ?>
+    			$total_ht += ($price['unit_price_commissionned']*$item->quantity);
+    			echo $f2->format($price['unit_price_commissionned']*$item->quantity); ?>
     			</th>
     		</tr>
     		<?php $i++; ?>
@@ -164,12 +170,16 @@
     			<td class="text-right border"><strong>{{$f2->format($total_ht)}}</strong></td>
     		</tr>
     		<tr>
+    			<th colspan="4" class="text-right border-left-0">@lang("Frais de port")</th>
+    			<td class="text-right border"><strong>{{$f2->format($row->nsetup['delivery'])}}</strong></td>
+    		</tr>
+    		<tr>
     			<th colspan="4" class="text-right border-left-0">@lang("TVA (:n%)", ["n" => $vat])</th>
-    			<td class="text-right border"><strong>{{$f2->format($total_ht*$vat/100)}}</strong></td>
+    			<td class="text-right border"><strong>{{$f2->format(($total_ht+$row->nsetup['delivery'])*$vat/100)}}</strong></td>
     		</tr>
     		<tr>
     			<th colspan="4" class="text-right border-left-0 border-bottom-0"><strong>@lang("TOTAL TTC")</strong></th>
-    			<td class="text-right border"><strong>{{$f2->format($total_ht*(1+$vat/100))}}</strong></td>
+    			<td class="text-right border"><strong>{{$f2->format(($total_ht+$row->nsetup['delivery'])*(1+$vat/100))}}</strong></td>
     		</tr>
     	</tbody>
 	</table>

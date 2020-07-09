@@ -223,7 +223,7 @@ class AffiliateController extends Controller
                 $prices = Price::wherePriceableType(Variant::class)->wherePriceableId($item->id)
                 ->whereHas('shop', function($q)use($shop_group){
                     $q->whereShopGroupId($shop_group->id);
-                })->orderBy('price')->take(1)->get();
+                })->orderBy('price')->get();
                 foreach($prices as $price) {
                     $price->shop->owner->append('nsetup');
                     if(!isset($shop_commissions[$price->shop_id])) {
@@ -250,13 +250,13 @@ class AffiliateController extends Controller
         $filtered = isset($ar['s']['options']);
         $categories = Categorie::whereHas('children.children', function($q)use($site){
             $q->join('ry_categories_categorizables', 'ry_categories_categorizables.categorie_id', '=', 'ry_categories_categories.id')
-            ->join('ry_centrale_site_restrictions', 'ry_centrale_site_restrictions.scope_id', '=', 'ry_categories_categorizables.categorizable_id')
+            ->join('ry_centrale_site_restrictions AS SR', 'SR.scope_id', '=', 'ry_categories_categorizables.categorizable_id')
             ->join("ry_pim_product_variants", "ry_pim_product_variants.product_id", "=", "ry_categories_categorizables.categorizable_id")
             ->join("ry_shop_prices", "ry_shop_prices.priceable_id", "=", "ry_pim_product_variants.id")
             ->where('categorizable_type', '=', Product::class)
-            ->where('ry_centrale_site_restrictions.scope_type', '=', Product::class)
-            ->where('ry_centrale_site_restrictions.site_id', '=', $site->id)
-            ->where('ry_centrale_site_restrictions.setup->domain', 'marketplace');
+            ->where('SR.scope_type', '=', Product::class)
+            ->where('SR.site_id', '=', $site->id)
+            ->where('SR.setup->domain', 'marketplace');
         })->where('ry_categories_categories.active', '=', true)->get();
         if($filtered) {
             if(isset($ar['s']['categories'])) {
