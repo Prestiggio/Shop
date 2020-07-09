@@ -76,9 +76,18 @@ class AffiliateController extends Controller
             $q->join("ry_shop_prices", "ry_shop_prices.priceable_id", "=", "ry_pim_product_variants.id")
             ->wherePriceableType(Variant::class)->select("ry_pim_product_variants.*")->groupBy('ry_pim_product_variants.id');
         }, "variants.sourcings", "categories", "variants.product"])
-        ->whereHas("variants", function($q){
-            return $q->join("ry_shop_prices", "ry_shop_prices.priceable_id", "=", "ry_pim_product_variants.id")
+        ->whereHas("variants", function($q)use($ar){
+            $q->join("ry_shop_prices", "ry_shop_prices.priceable_id", "=", "ry_pim_product_variants.id")
             ->wherePriceableType(Variant::class)->groupBy('ry_pim_product_variants.id');
+            if(isset($ar['s']['options'])) {
+                foreach($ar['s']['options'] as $option_name => $values) {
+                    $q->where(function($q)use($values, $option_name){
+                        foreach($values as $v)
+                            $q->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(JSON_EXTRACT(ry_pim_product_variants.setup, JSON_UNQUOTE(REPLACE(JSON_SEARCH(ry_pim_product_variants.setup, 'one', '".$option_name."'), '.option', ''))), '$.id')) = ?", [$v]);
+                    });
+                }
+            }
+            return $q;
         })->where('ry_centrale_site_restrictions.setup->domain', 'marketplace')->select("ry_pim_products.*");
         if($request->has('supplier_id')) {
             $supplier_id = $request->get('supplier_id');
@@ -167,7 +176,8 @@ class AffiliateController extends Controller
                     //hide everything in the column
                     Categorie::attributeAll($option_categories, ['show' => false]);
                     //get the IDs of values to show in that column
-                    $ids = Variant::whereHas("product", function($q)use($ar){
+                    $ids = Variant::join("ry_shop_prices", "ry_shop_prices.priceable_id", "=", "ry_pim_product_variants.id")
+                    ->wherePriceableType(Variant::class)->whereHas("product", function($q)use($ar){
                         $q->where('ry_centrale_site_restrictions.setup->domain', 'marketplace');
                         if(isset($ar['s']['categories']['category']['parent']) && $ar['s']['categories']['category']['parent']>0) {
                             $q->whereHas('categories.category.parent', function($q)use($ar){
@@ -193,16 +203,6 @@ class AffiliateController extends Controller
                 $option->form = $form;
             }
             //select of products to list
-            if(isset($ar['s']['options'])) {
-                $query->whereHas('variants', function($q)use($ar){
-                    foreach($ar['s']['options'] as $option_name => $values) {
-                        $q->where(function($q)use($values, $option_name){
-                            foreach($values as $v)
-                                $q->orWhereRaw("JSON_UNQUOTE(JSON_EXTRACT(JSON_EXTRACT(ry_pim_product_variants.setup, JSON_UNQUOTE(REPLACE(JSON_SEARCH(ry_pim_product_variants.setup, 'one', '".$option_name."'), '.option', ''))), '$.id')) = ?", [$v]);
-                        });
-                    }
-                });
-            }
             if(isset($ar['s']['categories'])) {
                 $query->whereHas('categories', function($q)use($ar){
                     $q->where(function($q)use($ar){
