@@ -152,13 +152,13 @@
     			?></td>
     			<td class="text-right">
     				<?php
-    				echo $f2->format($price['unit_price_commissionned']);
+    				echo $f2->format($item->nsetup['unit_price'] * $price['commission_factor']);
     			?>
     			</td>
     			<th class="text-right">
     			<?php 
-    			$total_ht += ($price['unit_price_commissionned']*$item->quantity);
-    			echo $f2->format($price['unit_price_commissionned']*$item->quantity); ?>
+    			$total_ht += ($item->nsetup['unit_price'] * $price['commission_factor'] * $item->quantity);
+    			echo $f2->format($item->nsetup['unit_price'] * $price['commission_factor'] * $item->quantity); ?>
     			</th>
     		</tr>
     		<?php $i++; ?>

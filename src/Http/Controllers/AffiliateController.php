@@ -233,11 +233,13 @@ class AffiliateController extends Controller
                     foreach($shop_commissions[$price->shop_id] as $icommission) {
                         $supplier_commissions+=floatval($icommission);
                     }
+                    $price->append('nsetup');
                     $price->setAttribute('commissions', [
                         'affiliate' => $arcommissions,
                         'supplier' => $shop_commissions
                     ]);
-                    $price->setAttribute('unit_price_commissionned', $price->price*(1+($commissions+$supplier_commissions)/100));
+                    $price->setAttribute('commission_factor', 1+($commissions+$supplier_commissions)/100);
+                    $price->setAttribute('unit_price_commissionned', $price->price*$price->commission_factor);
                 }
                 $item->setAttribute('sellable_nsetup', [
                     'prices' => $prices
@@ -299,7 +301,8 @@ class AffiliateController extends Controller
         $product = Product::with(["variants.sourcings", "medias", "categories"])->find($id);
         $product->append('details');
         $product->append('href');
-        $product->variants->map(function($item)use($commissions, $arcommissions, $me){
+        $shop_commissions = [];
+        $product->variants->map(function($item)use($commissions, $arcommissions, $me, &$shop_commissions){
             $site = app("centrale")->getSite();
             $shop_group = ShopGroup::where('setup->site_id', $site->id)->first();
             if(!$shop_group) {
@@ -320,6 +323,19 @@ class AffiliateController extends Controller
             })->get();
             foreach($prices as $price) {
                 $price->shop->owner->append('nsetup');
+                if(!isset($shop_commissions[$price->shop_id])) {
+                    $shop_commissions[$price->shop_id] = isset($price->shop->owner->centrale->nsetup['commissions']) ? $price->shop->owner->centrale->nsetup['commissions'] : [];
+                }
+                $supplier_commissions = 0;
+                foreach($shop_commissions[$price->shop_id] as $icommission) {
+                    $supplier_commissions+=floatval($icommission);
+                }
+                $price->append('nsetup');
+                $price->setAttribute('commissions', [
+                    'affiliate' => $arcommissions,
+                    'supplier' => $shop_commissions
+                ]);
+                $price->setAttribute('commission_factor', 1+($commissions+$supplier_commissions)/100);
                 $price->setAttribute('unit_price_commissionned', $price->price*(1+$commissions/100));
             }
             $item->setAttribute('sellable_nsetup', [
