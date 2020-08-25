@@ -17,7 +17,7 @@ class Zone extends Model
         parent::boot();
         
         static::addGlobalScope("ranked", function($q){
-            $q->orderBy(DB::raw("ry_shop_delivery_zones.setup->'$.rank'"));
+            $q->orderBy(DB::raw("JSON_EXTRACT(ry_shop_delivery_zones.setup, '$.rank')"));
         });
         static::addGlobalScope("active", function($q){
             $q->join("ry_centrale_site_restrictions", "ry_centrale_site_restrictions.scope_id", "=", "ry_shop_delivery_zones.id")
