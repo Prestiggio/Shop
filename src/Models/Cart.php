@@ -14,7 +14,7 @@ class Cart extends Model
     
     protected $table = "ry_shop_carts";
     
-    //protected $with = ["items", "shop", "deliveryAddress", "invoiceAddress", "currency", "customer"];
+    //protected $with = ["items", "shop", "deliveryAddress", "billingAddress", "currency", "customer"];
     
     public function shop() {
     	return $this->belongsTo("Ry\Shop\Models\Shop", "shop_id");
@@ -24,8 +24,8 @@ class Cart extends Model
     	return $this->belongsTo("Ry\Geo\Models\Adresse", "delivery_adresse_id");
     }
     
-    public function invoiceAddress() {
-    	return $this->belongsTo("Ry\Geo\Models\Adresse", "invoice_adresse_id");
+    public function billingAddress() {
+    	return $this->belongsTo("Ry\Geo\Models\Adresse", "billing_adresse_id");
     }
     
     public function currency() {

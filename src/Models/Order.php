@@ -46,7 +46,7 @@ class Order extends Model
     public static function subtotal($year) {
         if(!isset(self::$subtotals[$year])) {
             $_order = static::where(DB::raw("YEAR(ry_shop_orders.created_at)"), "=", $year)
-            ->selectRaw("SUM(ry_shop_orders.setup->'$.subtotal') AS sum_subtotal")->first();
+            ->selectRaw("SUM(JSON_EXTRACT(ry_shop_orders.setup, '$.subtotal')) AS sum_subtotal")->first();
             if($_order)
                 self::$subtotals[$year] = $_order;
             else
@@ -80,7 +80,7 @@ class Order extends Model
     public static function subtotalByMonth($year) {
         $results = static::groupBy(DB::raw("MONTH(ry_shop_orders.created_at)"))
         ->where(DB::raw("YEAR(ry_shop_orders.created_at)"), "=", $year)
-        ->selectRaw("SUM(ry_shop_orders.setup->'$.subtotal') AS quantity, MONTH(ry_shop_orders.created_at) as month")->get();
+        ->selectRaw("SUM(JSON_EXTRACT(ry_shop_orders.setup, '$.subtotal')) AS quantity, MONTH(ry_shop_orders.created_at) as month")->get();
         $ar = [];
         for($i=0; $i<12; $i++) {
             $ar[$i] = [
@@ -100,7 +100,7 @@ class Order extends Model
     
     public static function prettyTotalMonth($year) {
         $total = 0;
-        $_order = static::where(DB::raw("YEAR(ry_shop_orders.created_at)"), "=", $year)->where(DB::raw("MONTH(ry_shop_orders.created_at)"), "=", DB::raw("MONTH(CURRENT_DATE())"))->selectRaw("SUM(ry_shop_orders.setup->'$.subtotal') AS sum_subtotal")->first();
+        $_order = static::where(DB::raw("YEAR(ry_shop_orders.created_at)"), "=", $year)->where(DB::raw("MONTH(ry_shop_orders.created_at)"), "=", DB::raw("MONTH(CURRENT_DATE())"))->selectRaw("SUM(JSON_EXTRACT(ry_shop_orders.setup, '$.subtotal')) AS sum_subtotal")->first();
         if($_order) {
             $total = $_order->sum_subtotal;
         }
@@ -111,7 +111,7 @@ class Order extends Model
         $rows = static::where(DB::raw("YEAR(ry_shop_orders.created_at)"), "=", $year)->where(DB::raw("MONTH(ry_shop_orders.created_at)"), "=", DB::raw("MONTH(CURRENT_DATE())"))
         ->groupBy(DB::raw("DATE(ry_shop_orders.created_at)"))
         ->orderBy("ry_shop_orders.created_at")
-        ->selectRaw("SUM(ry_shop_orders.setup->'$.subtotal') AS quantity, DATE(ry_shop_orders.created_at) AS month")
+        ->selectRaw("SUM(JSON_EXTRACT(ry_shop_orders.setup, '$.subtotal')) AS quantity, DATE(ry_shop_orders.created_at) AS month")
         ->get();
         $start = Carbon::now()->year($year)->startOfMonth();
         $end = Carbon::now()->year($year)->endOfMonth();

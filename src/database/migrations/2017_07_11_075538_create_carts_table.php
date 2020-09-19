@@ -16,7 +16,7 @@ class CreateCartsTable extends Migration
             $table->increments('id');
             $table->integer("shop_id", false, true)->nullable();
             $table->integer("delivery_adresse_id", false, true)->nullable();
-            $table->integer("invoice_adresse_id", false, true)->nullable();
+            $table->integer("billing_adresse_id", false, true)->nullable();
             $table->integer("currency_id", false, true);
             $table->integer("customer_id", false, true);
             $table->boolean("recyclable")->default(true);

@@ -18,7 +18,7 @@
     			<td>@{{row.id}}</td>  	
     			<td>@{{row.shop_id}}</td>  	
     			<td>@{{row.delivery_adresse_id}}</td>  	
-    			<td>@{{row.invoice_adresse_id}}</td>  	
+    			<td>@{{row.billing_adresse_id}}</td>  	
     			<td>@{{row.currency_id}}</td>  	
     			<td>@{{row.customer_id}}</td>  	
     			<td>@{{row.recyclable}}</td>

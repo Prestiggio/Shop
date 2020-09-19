@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Ry\Medias\Models\Traits\MediableTrait;
 use Ry\Geo\Models\Traits\Geoable;
 use Ry\Profile\Models\Traits\JoinableTrait;
+use Ry\Shop\Models\Price\Price;
 
 class Shop extends Model
 {

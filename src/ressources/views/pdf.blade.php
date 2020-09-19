@@ -1,141 +1,187 @@
-<style type="text/css">
-.fleft {
-	float: left;
-}
-.fright {
-	float: right;
-}
-.clear {
-	clear: both;
-}
-.w3 {
-	width: 33%;
-}
-.bordered {
-	border: 0.4mm solid #000000;
-	padding: 3mm;
-	margin: 2mm;
-}
-.table {
-	border-collapse: collapse;
-	width: 90%;
-	border-spacing: 0;
-	border: 0.2mm solid #000000;
-	vertical-align: top;
-}
-.table-bordered td, .table-bordered th {
-	border: 0.1mm solid #000000;
-	padding: 2mm;
-}
-.underline {
-	text-decoration: underline;
-}
-.text-right{
-	text-align: right;
-}
-.adresse {
-	padding: 10mm 0;
-}
-
-</style>
 <page orientation="p" format="A4" footer="page;date;time" backtop="20mm" backbottom="60mm">
 	<page_header>
-		@if($row->order->cart->customer->owner->thumb)
-		<img alt="{{$row->order->cart->customer->owner->name}}" src="{{$row->order->cart->customer->owner->thumb}}" class="fleft">
-		@endif
-		@if($row->order->shop->thumb)
-		<img alt="{{$row->order->shop->name}}" src="{{$row->order->shop->thumb}}" class="fright">
-		@endif
-		<div class="clear"></div>
+		
 	</page_header>
 	<page_footer>
-		<div class="fleft">
-			
-		</div>
-		<div class="fright gray">
-			
-		</div>
-		<div class="clear"></div>
+		
 	</page_footer>
-	<table class="table">
+	<table class="table table-align-top">
 		<tr>
-			<td class="w3">				
-				<p class="underline">@lang("rycart::overall.to")</p>
+			<td>
+				<h2>@lang("Facture n°") : <span class="display-4 text-primary font-weight-bold">{{$row->code}}</span></h2>				
+				<p class="underline">@lang("ryshop::overall.to")</p>
 				<p>{{$row->order->cart->customer->owner->name}}<br/>
 				@if($row->order->cart->customer->owner->profile && $row->order->cart->customer->owner->profile->adresse)
 				{!! $row->order->cart->customer->owner->profile->completeAddress !!}
 				@endif
 				</p>
-				<hr/>
 				@if($row->order->payment!="")
 				<p><span class="underline">Modalités : </span>{{$row->order->payment}}</p>
 				@endif
 				<p><span class="underline">Notes : </span>{{$row->note}}</p>
 			</td>
-			<td class="w3">
-				<h4>Facture n°{{$row->id}}</h4>
-				@if($row->order->reference!="")
-				<div class="bordered">
-					{{$row->order->reference}}
-				</div>
-				@endif
-				<div class="bordered">
-					Date : {{$row->order->invoice_date}}
-				</div>
-				<div class="bordered">
-					Echéance : {{$row->order->delivery_date}}
-				</div>
-			</td>
-			<td class="w3">
-				<p>Beneficiaire : {{$row->order->shop->name}}<br/>
-				<div class="adresse">
-					{!! $row->order->shop->owner->completeAddress !!}
-				</div>
-				@if($row->order->shop->owner->rib)
-				IBAN : {{$row->order->shop->owner->rib->iban}}<br/>
-				BIC : {{$row->order->shop->owner->rib->bic}}<br/>
-				SWIFT : {{$row->order->shop->owner->rib->swift}}
-				@endif
-				</p>
-				<hr/>
-				{!! $row->order->shop->owner->completeContacts !!}
-				<div class="bordered">
-					Service : {{$row->shop_adresse}}
-				</div>
+			<td>
+				<table class="table table-align-top">
+					<tbody>
+						<tr>
+							<th class="text-right py-0">
+								@lang("Date") :
+							</th>
+							<td class="py-0">
+								{{$row->created_at->format('d/m/Y')}}
+							</td>
+						</tr>
+						<tr>
+							<th class="text-right py-0">
+								@lang("Commande Nº") : 
+							</th>
+							<td class="py-0">
+								{{$row->order->code}}
+							</td>
+						</tr>
+						<tr>
+							<th class="text-right py-0">
+								@lang("Echéance") :
+							</th>
+							<td class="py-0">
+								{{$row->created_at->add(2, 'week')->format('d/m/Y')}}
+							</td>
+						</tr>
+						<tr>
+							<th class="text-right py-0">
+								@lang("Bénéficiaire") :
+							</th>
+							<td class="py-0">
+								{{$row->order->shop->name}}
+							</td>
+						</tr>
+						<tr>
+							<th class="text-right py-0">
+								@lang("Adresse") :
+							</th>
+							<td class="py-0">
+								{!! $row->order->shop->owner->completeAddress !!}
+							</td>
+						</tr>
+						@if($row->order->shop->owner->rib)
+						<tr>
+							<th class="text-right py-0">
+								@lang("IBAN") :
+							</th>
+							<td class="py-0">
+								{{$row->order->shop->owner->rib->iban}}
+							</td>
+						</tr>
+						<tr>
+							<th class="text-right py-0">
+								@lang("BIC") :
+							</th>
+							<td class="py-0">
+								{{$row->order->shop->owner->rib->bic}}
+							</td>
+						</tr>
+						<tr>
+							<th class="text-right py-0">
+								@lang("SWIFT") :
+							</th>
+							<td class="py-0">
+								{{$row->order->shop->owner->rib->swift}}
+							</td>
+						</tr>
+						@endif
+						<tr>
+							<th class="text-right py-0">
+								@lang("Contacts") : 
+							</th>
+							<td class="py-0">
+								{!! $row->order->shop->owner->completeContacts !!}
+							</td>
+						</tr>
+					</tbody>
+				</table>
 			</td>
 		</tr>
 	</table>
 	<br/>
 	<br/>
-	<table class="table table-bordered">
-		<tr>
-			<th style="width: 10%;">Quantité</th>
-			<th style="width: 40%">Description</th>
-			<th style="width: 20%;">Unité</th>
-			<th style="width: 10%;">Prix unitaire ({{$row->order->currency->iso_code}})</th>
-			<th style="width: 10%;">Montant ({{$row->order->currency->iso_code}})</th>
-		</tr>
-		<?php $i = 1; ?>
-		@foreach($row->order->items as $item)
-		<tr>
-			<td class="text-right">{{$item->quantity}}</td>
-			<td>{{$item->sellable_name}}</td>
-			<td>{{$item->unit}}</td>
-			<td class="text-right">{{number_format($item->unit_price_tax_incl, 2, ",", ".")}}</td>
-			<td class="text-right">{{number_format($item->total_price_tax_incl, 2, ",", ".")}}</td>
-		</tr>
-		<?php $i++; ?>
-		@endforeach
-		<tr>
-			<td colspan="3" class=""></td>
-			<td class="text-right"><strong>TOTAL</strong> ({{$row->order->currency->iso_code}})</td>
-			<td class="text-right"><strong>{{number_format($row->total_products, 2, ",", ".")}}</strong></td>
-		</tr>
-		<tr>
-			<td colspan="3" class=""></td>
-			<td class="text-right">Unité monétaire</td>
-			<td class="text-right">{{$row->order->currency->iso_code}}</td>
-		</tr>
+	<table class="table table-bc border-left-0 table-align-top">
+		<tbody class="table-bordered">
+    		<tr class="bg-light">
+    			<th style="width: 10%;">@lang("Quantité")</th>
+    			<th style="width: 40%">@lang("Description")</th>
+    			<th style="width: 20%;">@lang("Unité")</th>
+    			<th style="width: 10%;">@lang("Prix unitaire")</th>
+    			<th style="width: 10%;">@lang("Montant")</th>
+    		</tr>
+    		<?php $i = 1;
+    		$total_ht = 0;
+    		?>
+    		@foreach($row->order->items as $item)
+    		<?php 
+    		$setup = $item->nsetup;
+    		$price = array_values(array_filter($item->nsetup['prices'], function($it)use($setup){
+    		    return $it['shop_id'] == $setup['shop_id'];
+    		}))[0];
+    		?>
+    		<tr>
+    			<td class="text-right">{{$f->format($item->quantity)}}</td>
+    			<td>
+    				<h3>{{$item->sellable->product->name}}</h3>
+    				@lang("Réf") : <strong
+    				class="text-danger">{{$item->sellable->nsetup['reference']}}</strong>
+    				<div>
+    				<img src="{{$item->sellable->product->medias->first()->fullpath}}" style="max-width: 40mm;"/>
+    				<div class="col-md-6">
+    					@foreach($item->sellable->visible_specs as $spec)
+    					@if($spec['functions']!='uci')
+    					<strong>{{$spec['label']}}</strong> : {{$spec['option']}}<br>
+    					@endif
+    					@endforeach
+    				</div>
+    			</div>
+    			</td>
+    			<td class="text-center"><?php 
+    			$uci = 'Unité';
+    			$ucis = array_filter($item->sellable->visible_specs, function($it){
+    			    return $it['functions'] == 'uci';
+    			});
+    			    if(count($ucis)>0) {
+    			        $uci = array_values($ucis)[0]['option'];
+    			    }
+    			    echo $uci;
+    			?></td>
+    			<td class="text-right">
+    				<?php
+    				echo $f2->format($item->nsetup['unit_price'] * $price['commission_factor']);
+    			?>
+    			</td>
+    			<th class="text-right">
+    			<?php 
+    			$total_ht += ($item->nsetup['unit_price'] * $price['commission_factor'] * $item->quantity);
+    			echo $f2->format($item->nsetup['unit_price'] * $price['commission_factor'] * $item->quantity); ?>
+    			</th>
+    		</tr>
+    		<?php $i++; ?>
+    		@endforeach
+    	</tbody>
+    	<tbody>
+    		<tr>
+    			<th colspan="4" class="text-right border-left-0">@lang("TOTAL HT")</th>
+    			<td class="text-right border"><strong>{{$f2->format($total_ht)}}</strong></td>
+    		</tr>
+    		<tr>
+    			<th colspan="4" class="text-right border-left-0">@lang("Frais de port")</th>
+    			<td class="text-right border"><strong>{{$f2->format($row->nsetup['delivery'])}}</strong></td>
+    		</tr>
+    		<tr>
+    			<th colspan="4" class="text-right border-left-0">@lang("TVA (:n%)", ["n" => $vat])</th>
+    			<td class="text-right border"><strong>{{$f2->format(($total_ht+$row->nsetup['delivery'])*$vat/100)}}</strong></td>
+    		</tr>
+    		<tr>
+    			<th colspan="4" class="text-right border-left-0 border-bottom-0"><strong>@lang("TOTAL TTC")</strong></th>
+    			<td class="text-right border"><strong>{{$f2->format(($total_ht+$row->nsetup['delivery'])*(1+$vat/100))}}</strong></td>
+    		</tr>
+    	</tbody>
 	</table>
 	<div class="bordered"><strong>Conditions: </strong>Payable</div>
 </page>
