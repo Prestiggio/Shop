@@ -8,9 +8,13 @@
 	<table class="table table-align-top">
 		<tr>
 			<td>
-				<h2>@lang("Facture n°") : <span class="display-4 text-primary font-weight-bold">{{$row->code}}</span></h2>				
+				<h2 class="display-4">@lang("Commande n°") : <span class="display-4 text-primary font-weight-bold">{{$row->order->code}}</span></h2>				
+				<br/>
+				<strong>@lang("Date") : </strong>{{$row->created_at->format('d/m/Y')}}
 				<p class="underline">@lang("ryshop::overall.to")</p>
-				<p>{{$row->order->cart->customer->owner->name}}<br/>
+				<p><strong>{{$row->order->cart->customer->owner->name}}</strong><br/>
+				<p>{{$row->buyer->users[0]->profile->gender_label}} {{$row->buyer->users[0]->profile->firstname}} {{$row->buyer->users[0]->profile->lastname}}</p>
+				<p>{!!$row->buyer->completeAddress!!}</p>
 				@if($row->order->cart->customer->owner->profile && $row->order->cart->customer->owner->profile->adresse)
 				{!! $row->order->cart->customer->owner->profile->completeAddress !!}
 				@endif
@@ -23,30 +27,6 @@
 			<td>
 				<table class="table table-align-top">
 					<tbody>
-						<tr>
-							<th class="text-right py-0">
-								@lang("Date") :
-							</th>
-							<td class="py-0">
-								{{$row->created_at->format('d/m/Y')}}
-							</td>
-						</tr>
-						<tr>
-							<th class="text-right py-0">
-								@lang("Commande Nº") : 
-							</th>
-							<td class="py-0">
-								{{$row->order->code}}
-							</td>
-						</tr>
-						<tr>
-							<th class="text-right py-0">
-								@lang("Echéance") :
-							</th>
-							<td class="py-0">
-								{{$row->created_at->add(2, 'week')->format('d/m/Y')}}
-							</td>
-						</tr>
 						<tr>
 							<th class="text-right py-0">
 								@lang("Bénéficiaire") :

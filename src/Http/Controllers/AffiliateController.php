@@ -471,6 +471,10 @@ class AffiliateController extends Controller
                     $order->seller_id = $supplier->id;
                     $order->cart_id = $cart->id;
                     $order->shop_id = $shop->id;
+                    $_shop['type'] = 'marketplace';
+                    $order->nsetup = $_shop;
+                    $order->save();
+                    $_shop['code'] = 'MP ' . $order->created_at->format('Y') . '-' . Order::whereBuyerType(Affiliate::class)->whereSellerType(Supplier::class)->whereRaw('YEAR(ry_shop_orders.created_at) = YEAR(CURDATE())')->count();
                     $order->nsetup = $_shop;
                     $order->save();
                     
@@ -573,7 +577,7 @@ class AffiliateController extends Controller
         $me = app("affiliation")->getLogged();
         $invoice = OrderInvoice::whereBuyerType(Affiliate::class)
         ->whereBuyerId($me->affiliation->id)
-        ->whereSellerType(Supplier::class)->with(['seller.adresse.ville.country', 'buyer.adresse.ville.country', 'buyer.users.profile', 'order.items.sellable.product.medias', 'order.cart.currency'])->find($request->get('id'));
+        ->whereSellerType(Supplier::class)->with(['seller.adresse.ville.country', 'buyer.adresse.ville.country', 'buyer.users.profile', 'order.items.sellable.product.medias', 'order.cart.currency', 'order.shop.owner'])->find($request->get('id'));
         if(!$invoice) {
             abort(404);
         }
@@ -586,6 +590,7 @@ class AffiliateController extends Controller
             $order_item->sellable->append('nsetup');
             $order_item->sellable->append('visible_specs');
         });
+        $invoice->order->shop->owner->append('complete_contacts');
         $invoice->order->setAttribute('currency', $invoice->order->cart ? $invoice->order->cart->currency : app("centrale")->getCurrency());
         $invoice->setAttribute('pdf_link', __('/marketplace/invoice?id=:id&format=:format', ['id' => $request->get('id'), 'format' => 'pdf']));
         $invoice->setAttribute('xml_link', __('/marketplace/invoice?id=:id&format=:format', ['id' => $request->get('id'), 'format' => 'xml']));
@@ -621,12 +626,12 @@ class AffiliateController extends Controller
             "parents" => [
                 [
                     "href" => __("/marketplace/invoices"),
-                    "title" => __("Tous vos factures")
+                    "title" => __("Tous vos commandes")
                 ]
             ],
             "page" => [
                 "href" => __("/marketplace/invoice?id=:id", ['id' => $request->get('id')]),
-                "title" => __("Facture Nº:id", ["id" => $invoice->code])
+                "title" => __("Commande Nº:id", ["id" => $invoice->code])
             ]
         ]);
     }
