@@ -3,6 +3,7 @@ namespace Ry\Shop\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use Ry\Admin\Http\Traits\ActionControllerTrait;
+use Illuminate\Http\Request;
 
 class SupplierController extends Controller
 {
@@ -27,6 +28,10 @@ class SupplierController extends Controller
                 "title" => __("Mon catalogue marketplace")
             ]
         ]);
+    }
+    
+    public function get_invoice(Request $request) {
+        return $request->all();
     }
 }
 ?>

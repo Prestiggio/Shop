@@ -8,7 +8,7 @@
 	<table class="table table-align-top">
 		<tr>
 			<td>
-				<h2 class="display-4">@lang("Commande n°") : <span class="display-4 text-primary font-weight-bold">{{$row->order->code}}</span></h2>				
+				<h2 class="display-4">@lang("Commande n°") : <span class="display-4 text-primary font-weight-bold">{{$row->order->nsetup['serial']}}</span></h2>				
 				<br/>
 				<strong>@lang("Date") : </strong>{{$row->created_at->format('d/m/Y')}}
 				<p class="underline">@lang("ryshop::overall.to")</p>

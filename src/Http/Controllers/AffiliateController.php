@@ -26,6 +26,7 @@ use Ry\Geo\Http\Controllers\PublicController as GeoController;
 use Ry\Shop\Models\OrderInvoice;
 use Spipu\Html2Pdf\Html2Pdf;
 use Mpdf\Mpdf;
+use Ry\Shop\Jobs\InvoiceMailing;
 
 class AffiliateController extends Controller
 {
@@ -92,7 +93,9 @@ class AffiliateController extends Controller
         if($request->has('supplier_id')) {
             $supplier_id = $request->get('supplier_id');
             $query->with(['variants' => function($q)use($supplier_id){
-                $q->whereHas("suppliers", function($q)use($supplier_id){
+                $q->join("ry_shop_prices", "ry_shop_prices.priceable_id", "=", "ry_pim_product_variants.id")
+                ->wherePriceableType(Variant::class)->select("ry_pim_product_variants.*")->groupBy('ry_pim_product_variants.id')
+                ->whereHas("suppliers", function($q)use($supplier_id){
                     $q->where("ry_pim_suppliers.id", "=", $supplier_id);
                 });
             }])->whereHas('variants.suppliers', function($q)use($supplier_id){
@@ -474,7 +477,7 @@ class AffiliateController extends Controller
                     $_shop['type'] = 'marketplace';
                     $order->nsetup = $_shop;
                     $order->save();
-                    $_shop['code'] = 'MP ' . $order->created_at->format('Y') . '-' . Order::whereBuyerType(Affiliate::class)->whereSellerType(Supplier::class)->whereRaw('YEAR(ry_shop_orders.created_at) = YEAR(CURDATE())')->count();
+                    $_shop['serial'] = 'MP' . $order->created_at->format('Y') . '-' . sprintf('%4d', Order::whereBuyerType(Affiliate::class)->whereSellerType(Supplier::class)->whereRaw('YEAR(ry_shop_orders.created_at) = YEAR(CURDATE())')->count());
                     $order->nsetup = $_shop;
                     $order->save();
                     
@@ -490,6 +493,7 @@ class AffiliateController extends Controller
                 ->whereBuyerId($me->affiliation->id)
                 ->whereSellerType(Supplier::class)
                 ->whereSellerId($supplier->id)->first();
+                $is_new_invoice = false;
                 if(!$invoice) {
                     $invoice = new OrderInvoice();
                     $invoice->order_id = $order->id;
@@ -497,11 +501,19 @@ class AffiliateController extends Controller
                     $invoice->buyer_id = $me->affiliation->id;
                     $invoice->seller_type = Supplier::class;
                     $invoice->seller_id = $supplier->id;
+                    $is_new_invoice = true;
                 }
                 $invoice->quantity = 1;
-                $invoice->total_price = $order->nsetup['total_ttc'];
                 $invoice->setup = $order->setup;
+                $invoice->total_price = $order->nsetup['total_ttc'];
                 $invoice->save();
+                
+                if($is_new_invoice) {
+                    $invoice_setup = $order->nsetup;
+                    $invoice_setup['serial'] = 'MP' . $invoice->created_at->format('Y') . '-' . $invoice->id;
+                    $invoice->nsetup = $invoice_setup;
+                    $invoice->save();
+                }
                 
                 $cart_sellables = $cart->items()->whereShopId($shop_id)->get();
                 
@@ -537,6 +549,9 @@ class AffiliateController extends Controller
             ]);
         }
         
+        $site = app("centrale")->getSite();
+        InvoiceMailing::dispatch($invoice, $invoice->seller->anyusers, $invoice->buyer->users, $site->id);
+        
         app("affiliation")->releaseCart('mp');
         return redirect(__('/marketplace/invoices?cart_id=:cart_id', ['cart_id' => $cart->id]))->with('message', [
             'content' => __("Votre commande a été enregistré avec succès. Nous allons vous recontacter pour le mode de règlement de votre facture."),
@@ -559,8 +574,6 @@ class AffiliateController extends Controller
         $invoices = $query->paginate($this->perpage);
         $invoices->map(function($invoice){
             $invoice->append('nsetup');
-            $code = 'MP ' . $invoice->created_at->format('Y') . '-' . $invoice->id;
-            $invoice->setAttribute('code', $code);
         });
         return view("ldjson", [
             "view" => "Affiliate.Marketplace.Order.Invoice.List",
@@ -581,10 +594,14 @@ class AffiliateController extends Controller
         if(!$invoice) {
             abort(404);
         }
+        if($request->has('format')) {
+            switch($request->get('format')) {
+                default:
+                    return $invoice->pdf();
+                    break;
+            }
+        }
         $invoice->append('nsetup');
-        $code = 'MP ' . $invoice->created_at->format('Y') . '-' . $invoice->id;
-        $invoice->setAttribute('code', $code);
-        $invoice->order->setAttribute('code', 'MP ' . $invoice->order->created_at->format('Y-m') . '-' . sprintf('%4d', $invoice->order->id));
         $invoice->order->items->map(function($order_item){
             $order_item->append('nsetup');
             $order_item->sellable->append('nsetup');
@@ -595,30 +612,6 @@ class AffiliateController extends Controller
         $invoice->setAttribute('pdf_link', __('/marketplace/invoice?id=:id&format=:format', ['id' => $request->get('id'), 'format' => 'pdf']));
         $invoice->setAttribute('xml_link', __('/marketplace/invoice?id=:id&format=:format', ['id' => $request->get('id'), 'format' => 'xml']));
         $invoice->setAttribute('csv_link', __('/marketplace/invoice?id=:id&format=:format', ['id' => $request->get('id'), 'format' => 'csv']));
-        if($request->has('format')) {
-            switch($request->get('format')) {
-                default:
-                    $formatter = new \NumberFormatter('fr-FR', \NumberFormatter::DECIMAL);
-                    $currency_formatter = new \NumberFormatter('fr-FR', \NumberFormatter::CURRENCY);
-                    $pdf = new Mpdf([
-                        'debug' => env('APP_DEBUG'),
-                        'defaultCssFile' => public_path('css/pdf.css'),
-                        'tempDir' => storage_path('tmp')
-                    ]);
-                    $pdf->SetAuthor('Centrale');
-                    $pdf->SetTitle('Facture ' . $invoice->code);
-                    $pdf->SetSubject("Facture");
-                    $pdf->setDefaultFont("Arial");
-                    $pdf->writeHTML(view("ryshop::pdf", [
-                        "row" => $invoice,
-                        "f" => $formatter,
-                        "f2" => $currency_formatter,
-                        "vat" => 20
-                    ])->render());
-                    return $pdf->Output(__("facture-:code.pdf", ['code' => date("Y-m-d-Hh-imn")]), 'D');
-                    break;
-            }
-        }
         return view("ldjson", [
             "view" => "Affiliate.Marketplace.Order.Invoice.Detail",
             "vat" => 20,
@@ -631,7 +624,7 @@ class AffiliateController extends Controller
             ],
             "page" => [
                 "href" => __("/marketplace/invoice?id=:id", ['id' => $request->get('id')]),
-                "title" => __("Commande Nº:id", ["id" => $invoice->code])
+                "title" => __("Commande Nº:id", ["id" => $invoice->nsetup['serial']])
             ]
         ]);
     }
@@ -647,9 +640,6 @@ class AffiliateController extends Controller
             SUM(ry_shop_order_items.price) AS total_price,
             COUNT(DISTINCT(ry_shop_order_items.sellable_id)) AS nvariants")
             ->paginate($this->perpage);
-        $data->map(function($order){
-            $order->setAttribute('code', 'MP-' . $order->created_at->format('ymd'). '-' . $order->id);
-        });
         return view("ldjson", [
             "data" => $data,
             "view" => "Affiliate.Marketplace.Order.List",
@@ -668,8 +658,6 @@ class AffiliateController extends Controller
             "buyer.warehouses.users.profile",
             "buyer.warehouses.adresse.ville.country"
         ])->find($request->get('id'));
-        $code = 'MP-' . $order->created_at->format('ymd'). '-' . $order->id;
-        $order->setAttribute('code', $code);
         $order->items->map(function($item){
             $item->append(['nsetup']);
             $item->sellable->append(['nsetup', 'visible_specs']);
@@ -680,7 +668,7 @@ class AffiliateController extends Controller
             "affiliate" => $order->buyer,
             "view" => "Affiliate.Marketplace.Order.Detail",
             "page" => [
-                "title" => __("Bon de commande :code", ["code" => $code]),
+                "title" => __("Bon de commande :code", ["code" => $order->nsetup['serial']]),
                 "href" => __("/marketplace/order?id=:id", ['id' => $order->id])
             ]
         ]);
