@@ -550,7 +550,7 @@ class AffiliateController extends Controller
         }
         
         $site = app("centrale")->getSite();
-        InvoiceMailing::dispatch($invoice, $invoice->seller->anyusers, $invoice->buyer->users, $site->id);
+        InvoiceMailing::dispatchNow($invoice, $invoice->seller->anyusers, $invoice->buyer->users, $site->id);
         
         app("affiliation")->releaseCart('mp');
         return redirect(__('/marketplace/invoices?cart_id=:cart_id', ['cart_id' => $cart->id]))->with('message', [
@@ -663,6 +663,7 @@ class AffiliateController extends Controller
             $item->sellable->append(['nsetup', 'visible_specs']);
             $item->sellable->product->append(['details', 'visible_specs']);
         });
+        $order->setAttribute('currency', app("centrale")->getCurrency());
         return view("ldjson", [
             "order" => $order,
             "affiliate" => $order->buyer,

@@ -9,10 +9,12 @@ use Ry\Opportunites\Models\QuotesRequestGroup;
 use Ry\Shop\Models\Order;
 use App\Http\Controllers\Controller as BaseController;
 use Ry\Opnegocies\Models\Opnegocie;
+use Ry\Pim\Models\Product\VariantSupplier;
+use Ry\Pim\Models\Supplier\Supplier;
 
 class Controller extends BaseController
 {   
-    public function detail(Request $request) {
+    public function detail(Request $request, $type) {
         $permission = Permission::authorize(__METHOD__);
         $order = Order::with(['buyer.adresse.ville.country', 'buyer.deliveryAdresse.ville.country', 'buyer.contacts', 'seller', 'items.sellable.product.medias', 'cart.deliveryAddress.ville.country', 'cart.billingAddress.ville.country'])->find($request->get('id'));
         if(isset($order->nsetup['operation_id']) && $order->nsetup['type']=='opportunites')
@@ -22,17 +24,31 @@ class Controller extends BaseController
         $order->append('nsetup');
         if($order->cart)
             $order->cart->append('nsetup');
-        $order->items->each(function($item){
+        if($order->seller_type==Supplier::class) {
+            $supplier_id = $order->seller_id;
+        }
+        else {
+            $supplier_id = false;
+        }
+        $order->items->each(function($item)use($supplier_id){
             $item->append('nsetup');
             $item->sellable->append('nsetup');
+            if(!$supplier_id && isset($item->nsetup['supplier_id']))
+                $supplier_id = $item->nsetup['supplier_id'];
+            if($supplier_id) {
+                $variant_supplier = VariantSupplier::whereSupplierId($supplier_id)->whereProductVariantId($item->sellable_id)->first();
+                $item->setAttribute('supplier_setup', $variant_supplier->nsetup);
+            }
         });
         return view("ldjson", [
             "view" => "Ry.Shop.Orders.Detail",
+            "mode" => $type,
             "data" => $order,
+            "vat" => 0.25,
             "parents" => [
                 [
-                    "title" => $order->buyer_type==Affiliate::class ? __("Commandes affiliés") : __("Commandes fournisseurs"),
-                    "href" => $order->buyer_type==Affiliate::class ? __("/affiliate_orders") : __("/supplier_orders")
+                    "title" => $type=="buyer" ? __("Commandes affiliés") : __("Commandes fournisseurs"),
+                    "href" => $type=="buyer" ? __("/affiliate_orders") : __("/supplier_orders")
                 ]
             ],
             "page" => [
