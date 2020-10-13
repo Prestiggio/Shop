@@ -14,7 +14,7 @@ class SellerInvoiceMail extends Mailable
 {
     use Queueable, SerializesModels;
     
-    private $content, $payload, $final_recipient;
+    private $content, $payload;
     
     /**
      * Create a new message instance.
@@ -23,11 +23,9 @@ class SellerInvoiceMail extends Mailable
      */
     public function __construct($template, $data)
     {
-        list($recipient_user, $payload) = $data;
-        $this->final_recipient = $recipient_user;
         $site = app("centrale")->getSite();
-        $data = $payload;
-        $media = $template->medias()->where('title', '=', ($recipient_user->preference && isset($recipient_user->preference->ardata['lang']))?$recipient_user->preference->ardata['lang']:App::getLocale())->first();
+        $invoice = $data['invoice'];
+        $media = $template->medias()->where('title', '=', App::getLocale())->first();
         $default_media = null;
         if(!$media)
             $media = $template->medias()->first();
@@ -46,24 +44,39 @@ class SellerInvoiceMail extends Mailable
             'subject' => isset($setup->subject) ? $setup->subject : $default_setup->subject,
             'signature' => isset($setup->signature) ? $setup->signature : $default_setup->signature,
             'content' => $content,
-            'recipient_email' => isset($template->nsetup['recipient']['email'])?$template->nsetup['recipient']['email']:$recipient_user->email,
-            'recipient_name' => isset($template->nsetup['recipient']['name'])?$template->nsetup['recipient']['name']:$recipient_user->name
+            'recipient_email' => $template->nsetup['recipient']['email'],
+            'recipient_name' => $template->nsetup['recipient']['name']
         ]);
         $twig = new Environment($loader);
         $twig->addGlobal("site", $site->nsetup);
         $subject = $twig->render("subject", $data);
         $this->subject($subject);
-        $recipient_user->notify([
-            'invoice_id' => $invoice->id,
-            'href' => $invoice->buyer_url,
-            'text' => $subject,
-            'category' => 'marketplace',
-            'icon' => 'icon-info text-success'
-        ]);
         $this->content = $twig->render("content", $data);
-        $this->to = [['address' => $twig->render("recipient_email", $data), 'name' => $twig->render("recipient_name", $data)]];
+        $this->attachData($invoice->order->sellerPdf('S'), $invoice->nsetup['serial'].'.pdf');
         if(!$site->nsetup['general']['email']) {
             $this->to = [['address' => isset($site->nsetup['contact']['email']) ? $site->nsetup['contact']['email'] : env('DEBUG_RECIPIENT_EMAIL', 'folojona@gmail.com'), 'name' => 'Default recipient']];
+        }
+        else {
+            foreach($invoice->seller->anyusers as $user) {
+                $user->notify([
+                    'invoice_id' => $invoice->id,
+                    'href' => $invoice->buyer_url,
+                    'text' => $subject,
+                    'category' => 'marketplace',
+                    'icon' => 'icon-info text-success'
+                ]);
+                $data['user'] = $user;
+                $this->cc($twig->render("recipient_email", $data), $twig->render("recipient_name", $data));
+            }
+        }
+        foreach($invoice->seller->anyusers as $user) {
+            $user->notify([
+                'invoice_id' => $invoice->id,
+                'href' => $invoice->buyer_url,
+                'text' => $subject,
+                'category' => 'marketplace',
+                'icon' => 'icon-info text-success'
+            ]);
         }
         $this->from("no-reply@".env('APP_DOMAIN'), $twig->render("signature", $data));
     }
@@ -75,23 +88,25 @@ class SellerInvoiceMail extends Mailable
      */
     public function build()
     {
-        $data = $this->payload;
+        $invoice = $this->payload;
         $content = $this->content;
-        $recipient = $this->final_recipient;
-        return $this->html($this->content)->withSwiftMessage(function(\Swift_Message $m)use($data,$content,$recipient){
+        return $this->html($this->content)->withSwiftMessage(function(\Swift_Message $m)use($invoice,$content){
             $cid = $m->getId();
-            $push = new Push();
-            $push->user_id = $recipient->id;
-            $push->object_type = get_class($data);
-            $push->object_id = $data->id;
-            $push->content = $content;
-            $push->confirm_reading = false;
-            $push->channel = 'email';
-            $push->cid = $cid;
-            $push->nsetup = [
-                'token' => str_random(60)
-            ];
-            $push->save();
+            $token = str_random(60);
+            foreach($invoice->seller->anyusers as $user) {
+                $push = new Push();
+                $push->user_id = $user->id;
+                $push->object_type = get_class($invoice);
+                $push->object_id = $invoice->id;
+                $push->content = $content;
+                $push->confirm_reading = false;
+                $push->channel = 'email';
+                $push->cid = $cid;
+                $push->nsetup = [
+                    'token' => $token
+                ];
+                $push->save();
+            }
         });
     }
 }

@@ -23,37 +23,29 @@ class BuyerInvoiceMail extends Mailable
      */
     public function __construct($template, $data)
     {
-        list($recipient_user, $payload) = $data;
-        $this->final_recipient = $recipient_user;
         $site = app("centrale")->getSite();
-        $data = $payload;
-        $media = $template->medias()->where('title', '=', ($recipient_user->preference && isset($recipient_user->preference->ardata['lang']))?$recipient_user->preference->ardata['lang']:App::getLocale())->first();
-        $default_media = null;
-        if(!$media)
-            $media = $template->medias()->first();
-        elseif($media->title!=App::getLocale()) {
-            $default_media = $template->medias()->where('title', '=', App::getLocale())->first();
-            $default_setup = json_decode($default_media->descriptif);
-        }
+        $media = $template->medias()->where('title', '=', App::getLocale())->first();
         $invoice = $data['invoice'];
+        $author = $data['author'];
+        $this->final_recipient = $author;
         $this->payload = $invoice;
         $setup = json_decode($media->descriptif);
-        if(!$default_media)
-            $default_setup = $setup;
         $content = Storage::disk('local')->get($media->path);
         $content = str_replace("</twig>", "}}", preg_replace("/\<twig macro=\"([^\"]+)\"\>[^\<]*/", '{{$1', $content));
         $loader = new ArrayLoader([
-            'subject' => isset($setup->subject) ? $setup->subject : $default_setup->subject,
-            'signature' => isset($setup->signature) ? $setup->signature : $default_setup->signature,
+            'subject' => isset($setup->subject) ? $setup->subject : $setup->subject,
+            'signature' => isset($setup->signature) ? $setup->signature : $setup->signature,
             'content' => $content,
-            'recipient_email' => isset($template->nsetup['recipient']['email'])?$template->nsetup['recipient']['email']:$recipient_user->email,
-            'recipient_name' => isset($template->nsetup['recipient']['name'])?$template->nsetup['recipient']['name']:$recipient_user->name
+            'recipient_email' => isset($template->nsetup['recipient']['email'])?$template->nsetup['recipient']['email']:$author->email,
+            'recipient_name' => isset($template->nsetup['recipient']['name'])?$template->nsetup['recipient']['name']:$author->name
         ]);
         $twig = new Environment($loader);
         $twig->addGlobal("site", $site->nsetup);
-        $subject = $twig->render("subject", $data);
+        $subject = $twig->render("subject", [
+            'invoice' => $invoice
+        ]);
         $this->subject($subject);
-        $recipient_user->notify([
+        $author->notify([
             'invoice_id' => $invoice->id,
             'href' => $invoice->buyer_url,
             'text' => $subject,
@@ -61,8 +53,12 @@ class BuyerInvoiceMail extends Mailable
             'icon' => 'icon-info text-success'
         ]);
         $this->content = $twig->render("content", $data);
-        $this->attachData($invoice->pdf('S'), $invoice->nsetup['serial'].'.pdf');
+        $this->attachData($invoice->order->pdf('S'), $invoice->nsetup['serial'].'.pdf');
+        $data['user'] = $invoice->nsetup['billing_address'];
         $this->to = [['address' => $twig->render("recipient_email", $data), 'name' => $twig->render("recipient_name", $data)]];
+        if($author->email!=$invoice->nsetup['billing_address']['email']) {
+            $this->cc($author->email, $author->name);
+        }
         if(!$site->nsetup['general']['email']) {
             $this->to = [['address' => isset($site->nsetup['contact']['email']) ? $site->nsetup['contact']['email'] : env('DEBUG_RECIPIENT_EMAIL', 'folojona@gmail.com'), 'name' => 'Default recipient']];
         }
@@ -76,15 +72,15 @@ class BuyerInvoiceMail extends Mailable
      */
     public function build()
     {
-        $data = $this->payload;
+        $invoice = $this->payload;
         $content = $this->content;
         $recipient = $this->final_recipient;
-        return $this->html($this->content)->withSwiftMessage(function(\Swift_Message $m)use($data,$content,$recipient){
+        return $this->html($this->content)->withSwiftMessage(function(\Swift_Message $m)use($invoice,$content,$recipient){
             $cid = $m->getId();
             $push = new Push();
             $push->user_id = $recipient->id;
-            $push->object_type = get_class($data);
-            $push->object_id = $data->id;
+            $push->object_type = get_class($invoice);
+            $push->object_id = $invoice->id;
             $push->content = $content;
             $push->confirm_reading = false;
             $push->channel = 'email';

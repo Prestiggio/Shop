@@ -11,6 +11,7 @@ use App\Http\Controllers\Controller as BaseController;
 use Ry\Opnegocies\Models\Opnegocie;
 use Ry\Pim\Models\Product\VariantSupplier;
 use Ry\Pim\Models\Supplier\Supplier;
+use Ry\Shop\Models\Delivery\Carrier;
 
 class Controller extends BaseController
 {   
@@ -40,11 +41,24 @@ class Controller extends BaseController
                 $item->setAttribute('supplier_setup', $variant_supplier->nsetup);
             }
         });
+        if(isset($order->nsetup['carrier']['id'])) {
+            $order->setAttribute('carrier', Carrier::with('medias')->find($order->nsetup['carrier']['id']));
+        }
+        $code = '';
+        if($type=='buyer' && isset($order->nsetup['affiliate_serial'])) {
+            $code = $order->nsetup['affiliate_serial'];
+        }
+        elseif($type=='seller' && isset($order->nsetup['supplier_serial'])) {
+            $code = $order->nsetup['affiliate_serial'];
+        }
+        elseif(isset($order->nsetup['serial'])) {
+            $code = $order->nsetup['serial'];
+        }
         return view("ldjson", [
             "view" => "Ry.Shop.Orders.Detail",
             "mode" => $type,
             "data" => $order,
-            "vat" => 0.25,
+            "vat" => app("centrale")->getVat(),
             "parents" => [
                 [
                     "title" => $type=="buyer" ? __("Commandes affiliés") : __("Commandes fournisseurs"),
@@ -52,7 +66,7 @@ class Controller extends BaseController
                 ]
             ],
             "page" => [
-                "title" => __("Détail commande"),
+                "title" => __("Détail commande :code", ["code" => $code]),
                 "href" => __("/order?id=".$order->id),
                 "icon" => "fa fa-cart",
                 "permission" => $permission
@@ -74,7 +88,7 @@ class Controller extends BaseController
             "view" => "Ry.Shop.Orders",
             "data" => $orders,
             "page" => [
-                "title" => __("Commandes"),
+                "title" => $request->get('type')=='buyer' ? __("Commandes affiliés") : __("Commandes fournisseurs"),
                 "href" => __("/orders"),
                 "icon" => "fa fa-cart",
                 "permission" => $permission

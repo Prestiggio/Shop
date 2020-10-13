@@ -8,19 +8,11 @@
 	<table class="table table-align-top">
 		<tr>
 			<td>
-				<h2 class="display-4">@lang("Commande n°") : <span class="display-4 text-primary font-weight-bold">{{$row->order->nsetup['serial']}}</span></h2>				
+				<h2 class="display-4">@lang("Commande n°") : <span class="display-4 text-primary font-weight-bold">{{$row->nsetup['serial']}}</span></h2>				
 				<br/>
 				<strong>@lang("Date") : </strong>{{$row->created_at->format('d/m/Y')}}
-				<p class="underline">@lang("ryshop::overall.to")</p>
-				<p><strong>{{$row->order->cart->customer->owner->name}}</strong><br/>
-				<p>{{$row->buyer->users[0]->profile->gender_label}} {{$row->buyer->users[0]->profile->firstname}} {{$row->buyer->users[0]->profile->lastname}}</p>
-				<p>{!!$row->buyer->completeAddress!!}</p>
-				@if($row->order->cart->customer->owner->profile && $row->order->cart->customer->owner->profile->adresse)
-				{!! $row->order->cart->customer->owner->profile->completeAddress !!}
-				@endif
-				</p>
-				@if($row->order->payment!="")
-				<p><span class="underline">Modalités : </span>{{$row->order->payment}}</p>
+				@if($row->payment!="")
+				<p><span class="underline">Modalités : </span>{{$row->payment}}</p>
 				@endif
 				<p><span class="underline">Notes : </span>{{$row->note}}</p>
 			</td>
@@ -32,7 +24,7 @@
 								@lang("Bénéficiaire") :
 							</th>
 							<td class="py-0">
-								{{$row->order->shop->name}}
+								{{$row->shop->name}}
 							</td>
 						</tr>
 						<tr>
@@ -40,16 +32,16 @@
 								@lang("Adresse") :
 							</th>
 							<td class="py-0">
-								{!! $row->order->shop->owner->completeAddress !!}
+								{!! $row->shop->owner->completeAddress !!}
 							</td>
 						</tr>
-						@if($row->order->shop->owner->rib)
+						@if($row->shop->owner->rib)
 						<tr>
 							<th class="text-right py-0">
 								@lang("IBAN") :
 							</th>
 							<td class="py-0">
-								{{$row->order->shop->owner->rib->iban}}
+								{{$row->shop->owner->rib->iban}}
 							</td>
 						</tr>
 						<tr>
@@ -57,7 +49,7 @@
 								@lang("BIC") :
 							</th>
 							<td class="py-0">
-								{{$row->order->shop->owner->rib->bic}}
+								{{$row->shop->owner->rib->bic}}
 							</td>
 						</tr>
 						<tr>
@@ -65,7 +57,7 @@
 								@lang("SWIFT") :
 							</th>
 							<td class="py-0">
-								{{$row->order->shop->owner->rib->swift}}
+								{{$row->shop->owner->rib->swift}}
 							</td>
 						</tr>
 						@endif
@@ -74,7 +66,7 @@
 								@lang("Contacts") : 
 							</th>
 							<td class="py-0">
-								{!! $row->order->shop->owner->completeContacts !!}
+								{!! $row->shop->owner->completeContacts !!}
 							</td>
 						</tr>
 					</tbody>
@@ -83,6 +75,34 @@
 		</tr>
 	</table>
 	<br/>
+	<table class="table table-bc border-left-0 table-align-top">
+		<tbody>
+			<tr class="bg-light">
+				<td>@lang("Livraison")</td>
+				<td>@lang("Facturation")</td>
+			</tr>
+			<tr>
+				<td>
+					<p><strong>{{$row->cart->nsetup['delivery_address']['name']}}</strong><br/>
+    				<p>
+    					{{$row->cart->deliveryAddress->raw}}<br/>
+    					{{$row->cart->deliveryAddress->ville->cp}} {{$row->cart->deliveryAddress->ville->nom}}<br/>
+    					{{$row->cart->deliveryAddress->ville->country->nom}}<br/>
+    					@lang("Tél") : {{$row->cart->nsetup['delivery_address']['contacts']['fixe']}}
+    				</p>
+				</td>
+				<td>
+					<p><strong>{{$row->cart->nsetup['billing_address']['name']}}</strong><br/>
+    				<p>
+    					{{$row->cart->billingAddress->raw}}<br/>
+    					{{$row->cart->billingAddress->ville->cp}} {{$row->cart->billingAddress->ville->nom}}<br/>
+    					{{$row->cart->billingAddress->ville->country->nom}}<br/>
+    					@lang("Tél") : {{$row->cart->nsetup['billing_address']['contacts']['fixe']}}
+    				</p>
+				</td>
+			</tr>
+		</tbody>
+	</table>
 	<br/>
 	<table class="table table-bc border-left-0 table-align-top">
 		<tbody class="table-bordered">
@@ -96,7 +116,7 @@
     		<?php $i = 1;
     		$total_ht = 0;
     		?>
-    		@foreach($row->order->items as $item)
+    		@foreach($row->items as $item)
     		<?php 
     		$setup = $item->nsetup;
     		$price = array_values(array_filter($item->nsetup['prices'], function($it)use($setup){
@@ -154,12 +174,12 @@
     			<td class="text-right border"><strong>{{$f2->format($row->nsetup['delivery'])}}</strong></td>
     		</tr>
     		<tr>
-    			<th colspan="4" class="text-right border-left-0">@lang("TVA (:n%)", ["n" => $vat])</th>
-    			<td class="text-right border"><strong>{{$f2->format(($total_ht+$row->nsetup['delivery'])*$vat/100)}}</strong></td>
+    			<th colspan="4" class="text-right border-left-0">@lang("TVA (:n%)", ["n" => $vat*100])</th>
+    			<td class="text-right border"><strong>{{$f2->format(($total_ht+$row->nsetup['delivery'])*$vat)}}</strong></td>
     		</tr>
     		<tr>
     			<th colspan="4" class="text-right border-left-0 border-bottom-0"><strong>@lang("TOTAL TTC")</strong></th>
-    			<td class="text-right border"><strong>{{$f2->format(($total_ht+$row->nsetup['delivery'])*(1+$vat/100))}}</strong></td>
+    			<td class="text-right border"><strong>{{$f2->format(($total_ht+$row->nsetup['delivery'])*(1+$vat))}}</strong></td>
     		</tr>
     	</tbody>
 	</table>

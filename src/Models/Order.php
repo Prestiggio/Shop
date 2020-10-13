@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Model;
 use Ry\Admin\Models\Traits\HasJsonSetup;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
+use Mpdf\Mpdf;
 
 class Order extends Model
 {
@@ -133,5 +134,71 @@ class Order extends Model
     public static function prettyTurnover($year) {
         $total = static::subtotal($year);
         return app("centrale")->prettyCurrency($total->sum_subtotal);
+    }
+    
+    public function pdf($mode = 'D') {
+        $this->append('nsetup');
+        $this->items->map(function($order_item){
+            $order_item->append('nsetup');
+            $order_item->sellable->append('nsetup');
+            $order_item->sellable->append('visible_specs');
+        });
+        $this->shop->owner->append('complete_contacts');
+        $this->setAttribute('currency', $this->cart ? $this->cart->currency : app("centrale")->getCurrency());
+        $formatter = new \NumberFormatter('fr-FR', \NumberFormatter::DECIMAL);
+        $currency_formatter = new \NumberFormatter('fr-FR', \NumberFormatter::CURRENCY);
+        $pdf = new Mpdf([
+            'debug' => env('APP_DEBUG'),
+            'defaultCssFile' => public_path('css/pdf.css'),
+            'tempDir' => storage_path('tmp')
+        ]);
+        $pdf->SetAuthor('Centrale');
+        $pdf->SetTitle('Commande ' . $this->nsetup['serial']);
+        $pdf->SetSubject("Commande");
+        $pdf->setDefaultFont("Arial");
+        $pdf->writeHTML(view("ryshop::buyer.pdf", [
+            "row" => $this,
+            "f" => $formatter,
+            "f2" => $currency_formatter,
+            "vat" => app("centrale")->getVat()
+        ])->render());
+        return $pdf->Output(__("commande-:code.pdf", ['code' => $this->nsetup['serial']]), $mode);
+    }
+    
+    public function sellerPdf($mode = 'D') {
+        $this->append('nsetup');
+        $this->items->map(function($order_item){
+            $order_item->append('nsetup');
+            $order_item->sellable->append('nsetup');
+            $order_item->sellable->append('visible_specs');
+        });
+        $this->shop->owner->append('complete_contacts');
+        $this->setAttribute('currency', $this->cart ? $this->cart->currency : app("centrale")->getCurrency());
+        $formatter = new \NumberFormatter('fr-FR', \NumberFormatter::DECIMAL);
+        $currency_formatter = new \NumberFormatter('fr-FR', \NumberFormatter::CURRENCY);
+        $pdf = new Mpdf([
+            'debug' => env('APP_DEBUG'),
+            'defaultCssFile' => public_path('css/pdf.css'),
+            'tempDir' => storage_path('tmp')
+        ]);
+        $pdf->SetAuthor('Centrale');
+        $pdf->SetTitle('Facture ' . $this->nsetup['serial']);
+        $pdf->SetSubject("Facture");
+        $pdf->setDefaultFont("Arial");
+        $pdf->writeHTML(view("ryshop::seller.pdf", [
+            "row" => $this,
+            "f" => $formatter,
+            "f2" => $currency_formatter,
+            "vat" => app("centrale")->getVat()
+        ])->render());
+        return $pdf->Output(__("commande-:code.pdf", ['code' => $this->nsetup['serial']]), $mode);
+    }
+    
+    public function getBuyerUrlAttribute() {
+        return app("centrale")->buildBuyerUrl(__("/marketplace/orders?cart_id=:cart_id", ['cart_id' => $this->cart_id]));
+    }
+    
+    public function getSellerUrlAttribute() {
+        return app("centrale")->buildSellerUrl(__("/marketplace/orders?cart_id=:cart_id", ['cart_id' => $this->cart_id]));
     }
 }

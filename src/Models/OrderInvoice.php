@@ -5,7 +5,6 @@ namespace Ry\Shop\Models;
 use Illuminate\Database\Eloquent\Model;
 use Ry\Analytics\Models\Traits\LinkableTrait;
 use Ry\Admin\Models\Traits\HasJsonSetup;
-use Mpdf\Mpdf;
 
 class OrderInvoice extends Model
 {
@@ -62,34 +61,5 @@ class OrderInvoice extends Model
     public function getSellerUrlAttribute() {
         $site = app("centrale")->getSite();
         return (isset($site->nsetup['ssl']) ? 'https://' : 'http://') . $site->nsetup['subdomains']['supplier'] . __("/marketplace/invoice?id=:id", ["id" => $this->id]);
-    }
-    
-    public function pdf($mode = 'D') {
-        $this->append('nsetup');
-        $this->order->items->map(function($order_item){
-            $order_item->append('nsetup');
-            $order_item->sellable->append('nsetup');
-            $order_item->sellable->append('visible_specs');
-        });
-        $this->order->shop->owner->append('complete_contacts');
-        $this->order->setAttribute('currency', $this->order->cart ? $this->order->cart->currency : app("centrale")->getCurrency());
-        $formatter = new \NumberFormatter('fr-FR', \NumberFormatter::DECIMAL);
-        $currency_formatter = new \NumberFormatter('fr-FR', \NumberFormatter::CURRENCY);
-        $pdf = new Mpdf([
-            'debug' => env('APP_DEBUG'),
-            'defaultCssFile' => public_path('css/pdf.css'),
-            'tempDir' => storage_path('tmp')
-        ]);
-        $pdf->SetAuthor('Centrale');
-        $pdf->SetTitle('Facture ' . $this->nsetup['serial']);
-        $pdf->SetSubject("Facture");
-        $pdf->setDefaultFont("Arial");
-        $pdf->writeHTML(view("ryshop::pdf", [
-            "row" => $this,
-            "f" => $formatter,
-            "f2" => $currency_formatter,
-            "vat" => 20
-        ])->render());
-        return $pdf->Output(__("facture-:code.pdf", ['code' => $this->nsetup['serial']]), $mode);
     }
 }

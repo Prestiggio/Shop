@@ -75,8 +75,8 @@ class DeliveryController extends Controller
         $supplier_setup = array_replace_recursive($supplier_setup, $ar['nsetup']);
         /*$supplier_setup['carriage_paid'] = $ar['nsetup']['carriage_paid'];
         $supplier_setup['delivery']['delay'] = $ar['nsetup']['delivery']['delay'];
-        $supplier_setup['order']['minimum'] = $ar['nsetup']['order']['minimum'];
-        $supplier_setup['preferred_carriers'] = $ar['nsetup']['preferred_carriers'];*/
+        $supplier_setup['order']['minimum'] = $ar['nsetup']['order']['minimum'];*/
+        $supplier_setup['preferred_carriers'] = $ar['nsetup']['preferred_carriers'];
         $supplier->nsetup = $supplier_setup;
         $supplier->save();
         return redirect(__('/shop/delivery/rates'))->with('message', [

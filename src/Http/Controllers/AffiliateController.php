@@ -27,6 +27,7 @@ use Ry\Shop\Models\OrderInvoice;
 use Spipu\Html2Pdf\Html2Pdf;
 use Mpdf\Mpdf;
 use Ry\Shop\Jobs\InvoiceMailing;
+use Mpdf\Output\Destination;
 
 class AffiliateController extends Controller
 {
@@ -365,7 +366,7 @@ class AffiliateController extends Controller
         }
         return view("ldjson", [
             "view" => "Affiliate.Marketplace.Order.BillingAddress",
-            "vat" => 20,
+            "vat" => app("centrale")->getVat(),
             "countries" => Country::all(),
             "page" => [
                 "title" => __("Adresse de facturation"),
@@ -382,7 +383,7 @@ class AffiliateController extends Controller
         }
         return view("ldjson", [
             "view" => "Affiliate.Marketplace.Order.DeliveryAddress",
-            "vat" => 20,
+            "vat" => app("centrale")->getVat(),
             "countries" => Country::all(),
             "page" => [
                 "title" => __("Adresse de livraison"),
@@ -397,6 +398,9 @@ class AffiliateController extends Controller
         $cart_setup = $cart->nsetup;
         if(isset($ar['shop'])) {
             foreach($ar['shop'] as $shop_id => $_shop) {
+                if(isset($_shop['order']['nsetup']['minimum']['value']) && $_shop['order']['nsetup']['minimum']['value']>$_shop['order']['nsetup']['total']) {
+                    $_shop['order']['nsetup']['underorder'] = true;
+                }
                 $cart_setup['shop'][$shop_id] = $_shop['order']['nsetup'];
                 foreach($_shop['variants'] as $product_variant_id => $variant) {
                     $sellable = $cart->items()->whereShopId($shop_id)->whereSellableId($product_variant_id)->whereSellableType(Variant::class)->find($variant['cart_sellable_id']);
@@ -443,7 +447,7 @@ class AffiliateController extends Controller
         }
         return view("ldjson", [
             "view" => "Affiliate.Marketplace.Order.Payment",
-            "vat" => 20,
+            "vat" => app("centrale")->getVat(),
             "carrier_rates" => $carrier_rates,
             "page" => [
                 "href" => __("/marketplace/payment?cart_id=:cart_id", ['cart_id' => $request->get('cart_id')]),
@@ -458,9 +462,14 @@ class AffiliateController extends Controller
         $cart = $carts['mp'];
         $ar = $cart->nsetup;
         $errors = [];
+        $site = app("centrale")->getSite();
+        $invoices = new Collection();
         if(isset($ar['shop'])) {
             OrderItem::unguard();
             foreach($ar['shop'] as $shop_id => $_shop) {
+                if(isset($_shop['underorder']))
+                    continue;
+                
                 $shop = Shop::find($shop_id);
                 $supplier = $shop->owner;
                 $order = Order::whereBuyerType(Affiliate::class)->whereBuyerId($me->affiliation->id)
@@ -475,15 +484,19 @@ class AffiliateController extends Controller
                     $order->cart_id = $cart->id;
                     $order->shop_id = $shop->id;
                     $_shop['type'] = 'marketplace';
+                    $_shop['delivery_address'] = $ar['delivery_address'];
+                    $_shop['billing_address'] = $ar['billing_address'];
                     $order->nsetup = $_shop;
                     $order->save();
-                    $_shop['serial'] = 'MP' . $order->created_at->format('Y') . '-' . sprintf('%4d', Order::whereBuyerType(Affiliate::class)->whereSellerType(Supplier::class)->whereRaw('YEAR(ry_shop_orders.created_at) = YEAR(CURDATE())')->count());
+                    $_shop['serial'] = 'MP' . $order->created_at->format('Y') . '-' . sprintf('%04d', Order::whereBuyerType(Affiliate::class)->whereSellerType(Supplier::class)->whereRaw('YEAR(ry_shop_orders.created_at) = YEAR(CURDATE())')->count());
                     $order->nsetup = $_shop;
                     $order->save();
                     
                     app("centrale")->toSite($order);
                 }
                 else {
+                    $_shop['delivery_address'] = $ar['delivery_address'];
+                    $_shop['billing_address'] = $ar['billing_address'];
                     $order->nsetup = array_replace_recursive($order->nsetup, $_shop);
                     $order->save();
                 }
@@ -513,6 +526,10 @@ class AffiliateController extends Controller
                     $invoice_setup['serial'] = 'MP' . $invoice->created_at->format('Y') . '-' . $invoice->id;
                     $invoice->nsetup = $invoice_setup;
                     $invoice->save();
+                }
+                
+                if(!$invoices->contains('id', '=', $invoice->id)) {
+                    $invoices->push($invoice);
                 }
                 
                 $cart_sellables = $cart->items()->whereShopId($shop_id)->get();
@@ -549,11 +566,12 @@ class AffiliateController extends Controller
             ]);
         }
         
-        $site = app("centrale")->getSite();
-        InvoiceMailing::dispatchNow($invoice, $invoice->seller->anyusers, $invoice->buyer->users, $site->id);
+        foreach($invoices as $invoice) {
+            InvoiceMailing::dispatchNow($invoice, $me, $site->id);
+        }
         
         app("affiliation")->releaseCart('mp');
-        return redirect(__('/marketplace/invoices?cart_id=:cart_id', ['cart_id' => $cart->id]))->with('message', [
+        return redirect(__('/marketplace/orders?cart_id=:cart_id', ['cart_id' => $cart->id]))->with('message', [
             'content' => __("Votre commande a été enregistré avec succès. Nous allons vous recontacter pour le mode de règlement de votre facture."),
             'class' => 'alert-success'
         ]);
@@ -561,10 +579,8 @@ class AffiliateController extends Controller
     
     public function get_invoices(Request $request) {
         $me = app("affiliation")->getLogged();
-        $query = OrderInvoice::whereBuyerType(Affiliate::class)
-        ->whereBuyerId($me->affiliation->id)
-        ->whereSellerType(Supplier::class)
-        ->with('order.items');
+        $query = OrderInvoice::with('order.items')->whereBuyerType(Affiliate::class)
+        ->whereBuyerId($me->affiliation->id);
         if($request->has('cart_id')) {
             $cart_id = $request->get('cart_id');
             $query->whereHas('order.cart', function($q)use($cart_id){
@@ -581,7 +597,7 @@ class AffiliateController extends Controller
             "type" => "invoice",
             "page" => [
                 "href" => __('/marketplace/invoices?cart_id=:cart_id', ['cart_id' => $request->get('cart_id')]),
-                "title" => __("Paiement demandé")
+                "title" => $request->has('cart_id')?__("Paiement demandé"):__('Bons de commandes marketplace')
             ]
         ]);
     }
@@ -614,7 +630,7 @@ class AffiliateController extends Controller
         $invoice->setAttribute('csv_link', __('/marketplace/invoice?id=:id&format=:format', ['id' => $request->get('id'), 'format' => 'csv']));
         return view("ldjson", [
             "view" => "Affiliate.Marketplace.Order.Invoice.Detail",
-            "vat" => 20,
+            "vat" => app("centrale")->getVat(),
             "data" => $invoice,
             "parents" => [
                 [
@@ -629,17 +645,23 @@ class AffiliateController extends Controller
         ]);
     }
     
-    public function get_orders() {
+    public function get_orders(Request $request) {
         $me = app("affiliation")->getLogged();
         $query = Order::with(['items.sellable.product.medias'])
         ->join('ry_shop_order_items', 'ry_shop_order_items.order_id', '=', 'ry_shop_orders.id')
         ->whereBuyerType(Affiliate::class)->whereBuyerId($me->affiliation->id)->where('ry_shop_orders.setup->type', 'marketplace');
+        if($request->has('cart_id')) {
+            $query->whereCartId($request->get('cart_id'));
+        }
         $data = $query->orderBy('ry_shop_orders.id', 'desc')
         ->groupBy("ry_shop_orders.id")
         ->selectRaw("ry_shop_orders.*,
             SUM(ry_shop_order_items.price) AS total_price,
             COUNT(DISTINCT(ry_shop_order_items.sellable_id)) AS nvariants")
             ->paginate($this->perpage);
+        $data->map(function($order){
+            $order->append('nsetup');
+        });
         return view("ldjson", [
             "data" => $data,
             "view" => "Affiliate.Marketplace.Order.List",
@@ -652,22 +674,32 @@ class AffiliateController extends Controller
     
     public function get_order(Request $request) {
         $order = Order::with([
-            "items.sellable.product.medias", 
-            "buyer.users.profile",
-            "buyer.adresse.ville.country",
-            "buyer.warehouses.users.profile",
-            "buyer.warehouses.adresse.ville.country"
+            "items.sellable.product.medias",
+            "cart.deliveryAddress.ville.country",
+            "cart.billingAddress.ville.country"
         ])->find($request->get('id'));
+        $order->append('nsetup');
+        $order->cart->append('nsetup');
         $order->items->map(function($item){
             $item->append(['nsetup']);
             $item->sellable->append(['nsetup', 'visible_specs']);
             $item->sellable->product->append(['details', 'visible_specs']);
         });
         $order->setAttribute('currency', app("centrale")->getCurrency());
+        $order->setAttribute('pdf_link', __("/marketplace/order?id=:id&format=pdf", ['id' => $order->id]));
+        if($request->has('format') && $request->get('format')=='pdf') {
+            return $order->pdf(Destination::INLINE);
+        }
         return view("ldjson", [
             "order" => $order,
             "affiliate" => $order->buyer,
             "view" => "Affiliate.Marketplace.Order.Detail",
+            "parents" => [
+                [
+                    "title" => __("Mes bons de commande"),
+                    "href" => __("/marketplace/orders")
+                ]
+            ],
             "page" => [
                 "title" => __("Bon de commande :code", ["code" => $order->nsetup['serial']]),
                 "href" => __("/marketplace/order?id=:id", ['id' => $order->id])
