@@ -5,6 +5,7 @@ use Illuminate\Http\Request;
 use Ry\Admin\Models\Permission;
 use Ry\Shop\Models\Currency;
 use Ry\Affiliate\Models\Affiliate;
+use Ry\Centrale\Models\Site;
 use Ry\Opportunites\Models\QuotesRequestGroup;
 use Ry\Shop\Models\Order;
 use App\Http\Controllers\Controller as BaseController;
@@ -17,7 +18,15 @@ class Controller extends BaseController
 {   
     public function detail(Request $request, $type) {
         $permission = Permission::authorize(__METHOD__);
-        $order = Order::with(['buyer.adresse.ville.country', 'buyer.deliveryAdresse.ville.country', 'buyer.contacts', 'seller', 'items.sellable.product.medias', 'cart.deliveryAddress.ville.country', 'cart.billingAddress.ville.country'])->find($request->get('id'));
+        $order = Order::where('buyer_type', '!=', Site::class)->with(['buyer.adresse.ville.country', 'buyer.deliveryAdresse.ville.country', 'buyer.contacts', 'seller', 'items.sellable.product.medias', 'cart.deliveryAddress.ville.country', 'cart.billingAddress.ville.country'])->find($request->get('id'));
+        if(!$order) {
+            $order = Order::whereBuyerType(Site::class)->with(['buyer', 'seller', 'items.sellable.product.medias', 'cart.deliveryAddress.ville.country', 'cart.billingAddress.ville.country'])->find($request->get('id'));
+            if($order) {
+                $order->buyer->append(['name', 'adresse', 'deliveryAdresse', 'contacts']);
+            }
+        }
+        if(!$order)
+            abort(404);
         if(isset($order->nsetup['operation_id']) && $order->nsetup['type']=='opportunites')
             $order->setAttribute('operation', QuotesRequestGroup::find($order->nsetup['operation_id']));
         elseif(isset($order->nsetup['operation_id']) && $order->nsetup['type']=='opnegocies')
