@@ -1,10 +1,13 @@
 <?php 
 namespace Ry\Shop\Http\Controllers;
 
+use App\User;
 use App\Http\Controllers\Controller;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Mail;
 use Ry\Admin\Http\Traits\ActionControllerTrait;
 use Ry\Affiliate\Models\Affiliate;
 use Ry\Categories\Models\Categorie;
@@ -17,6 +20,7 @@ use Ry\Shop\Models\ShopGroup;
 use Ry\Pim\Models\Product\Option;
 use Ry\Pim\Models\Product\VariantSupplier;
 use Ry\Pim\Models\Product\Variant;
+use Ry\Profile\Models\NotificationTemplate;
 use Ry\Shop\Models\OrderItem;
 use Ry\Shop\Models\Price\Price;
 use Ry\Shop\Models\Delivery\CarrierZoneRate;
@@ -28,6 +32,8 @@ use Spipu\Html2Pdf\Html2Pdf;
 use Mpdf\Mpdf;
 use Ry\Shop\Jobs\InvoiceMailing;
 use Mpdf\Output\Destination;
+use Ry\Shop\Models\Payment;
+use Ry\Shop\Mail\PaymentMail;
 
 class AffiliateController extends Controller
 {
@@ -406,7 +412,9 @@ class AffiliateController extends Controller
                     $sellable = $cart->items()->whereShopId($shop_id)->whereSellableId($product_variant_id)->whereSellableType(Variant::class)->find($variant['cart_sellable_id']);
                     $sellable->quantity = $variant['quantity'];
                     $sellable_setup = $sellable->nsetup;
+                    $sellable_setup['unit_price'] = $variant['unit_price'];
                     $sellable_setup['total_price'] = $variant['total_price'];
+                    $sellable_setup['shop_id'] = $variant['shop_id'];
                     $sellable->nsetup = $sellable_setup;
                     $sellable->save();
                 }
@@ -434,7 +442,6 @@ class AffiliateController extends Controller
     
     public function get_payment(Request $request) {
         $me = app("affiliation")->getLogged();
-        $carts = app("affiliation")->cart();
         $carrier_rates = CarrierZoneRate::with('prices')
         ->whereHas("zone")
         ->whereHas("carrier")
@@ -442,13 +449,62 @@ class AffiliateController extends Controller
         $carrier_rates->map(function($carrier_rate){
             $carrier_rate->append('nsetup');
         });
-        if(isset($carts['mp'])) {
-            $carts['mp']->append(['nsetup']);
+        $amount = 0;
+        $cart = Cart::with(['items.sellable.product.medias', 'customer.facturable.warehouses.users'])->find($request->get('cart_id'));
+        $cart_setup = $cart->nsetup;
+        if(isset($cart_setup['transaction_code']) && !Payment::where('setup->vads_trans_id', $cart_setup['transaction_code'])->exists()) {
+            unset($cart_setup['transaction_code']);
         }
+        if(!isset($cart_setup['transaction_code'])) {
+            $transaction_code = Str::random(6);
+            $cart_setup['transaction_code'] = $transaction_code;
+            $cart->nsetup = $cart_setup;
+            $cart->save();
+        }
+        else {
+            $transaction_code = $cart_setup['transaction_code'];
+        }
+        $carriers = [];
+        $cart->items->map(function($item)use(&$carriers, $cart){
+            $item->append('nsetup');
+            if(isset($item->nsetup['shop_id']) && !isset($carriers[$item->nsetup['shop_id']])) {
+                $supplier = Supplier::whereHas('shop', function($q)use($item){
+                    $q->where('ry_shop_shops.id', '=', $item->nsetup['shop_id']);
+                })->first();
+                $_carriers = $supplier->carriers;
+                if(isset($cart->nsetup['shop'][$item->nsetup['shop_id']]['carrier']['id'])) {
+                    $_carriers->map(function($carrier)use($item, $cart){
+                        $carrier->setAttribute('selected', false);
+                        if($cart->nsetup['shop'][$item->nsetup['shop_id']]['carrier']['id']==$carrier->id)
+                            $carrier->setAttribute('selected', true);
+                    });
+                }
+                $carriers[$item->nsetup['shop_id']] = $_carriers;
+            }
+            $item->sellable->makeHidden('setup');
+            $item->sellable->append('visible_specs');
+            $item->sellable->append('nsetup');
+            $item->sellable->product->append('details');
+        });
+        $cart->setAttribute('carriers', $carriers);
+        if(isset($cart->nsetup['shop'])) {
+            foreach($cart->nsetup['shop'] as $shop) {
+                if(isset($shop['underorder']) && $shop['underorder'])
+                    continue;
+                $amount += doubleval($shop['total_ttc']);
+            }
+        }
+        $cart->append(['nsetup']);
         return view("ldjson", [
             "view" => "Affiliate.Marketplace.Order.Payment",
             "vat" => app("centrale")->getVat(),
             "carrier_rates" => $carrier_rates,
+            "data" => $cart,
+            "transaction_code" => $transaction_code,
+            "payment" => [
+                "data" => app("payment")->paymentForm($amount, $transaction_code, app("centrale")->buildBuyerUrl(__('/marketplace/orders?cart_id=:cart_id', ['cart_id' => $request->get('cart_id')])))
+            ],
+            "currency" => app("centrale")->getCurrency(),
             "page" => [
                 "href" => __("/marketplace/payment?cart_id=:cart_id", ['cart_id' => $request->get('cart_id')]),
                 "title" => __("Paiement")
@@ -456,29 +512,98 @@ class AffiliateController extends Controller
         ]);
     }
     
-    public function post_order(Request $request) {
+    public function post_payment(Request $request) {
+        $me = app("affiliation")->getLogged();
+        $carrier_rates = CarrierZoneRate::with('prices')
+        ->whereHas("zone")
+        ->whereHas("carrier")
+        ->whereZoneId($me->affiliation->delivery_zone->id)->get();
+        $carrier_rates->map(function($carrier_rate){
+            $carrier_rate->append('nsetup');
+        });
+        $cart = Cart::with(['items.sellable.product.medias', 'customer.facturable.warehouses.users'])->find($request->get('id'));
+        $carriers = [];
+        $cart->items->map(function($item)use(&$carriers, $cart){
+            $item->append('nsetup');
+            if(isset($item->nsetup['shop_id']) && !isset($carriers[$item->nsetup['shop_id']])) {
+                $supplier = Supplier::whereHas('shop', function($q)use($item){
+                    $q->where('ry_shop_shops.id', '=', $item->nsetup['shop_id']);
+                })->first();
+                $_carriers = $supplier->carriers;
+                if(isset($cart->nsetup['shop'][$item->nsetup['shop_id']]['carrier']['id'])) {
+                    $_carriers->map(function($carrier)use($item, $cart){
+                        $carrier->setAttribute('selected', false);
+                        if($cart->nsetup['shop'][$item->nsetup['shop_id']]['carrier']['id']==$carrier->id)
+                            $carrier->setAttribute('selected', true);
+                    });
+                }
+                $carriers[$item->nsetup['shop_id']] = $_carriers;
+            }
+            $item->sellable->makeHidden('setup');
+            $item->sellable->append('visible_specs');
+            $item->sellable->append('nsetup');
+            $item->sellable->product->append('details');
+        });
+        $cart->setAttribute('carriers', $carriers);
+        $cart->append(['nsetup']);
+        
+        if(app("payment")->isExpress())
+            $this->cartToInvoices($cart, $me);
+        
+        $author = User::with(['profile'])->find($cart->nsetup['author_id']);
+        $data = [
+            'author' => $author,
+            'cart' => $cart
+        ];
+        
+        $templates = NotificationTemplate::whereHas("alerts", function($q){
+            $q->whereCode('ryshop_transfer_payment');
+        })
+        ->where("channels", "LIKE", '%MailSender%')->get();
+        if($templates->count()==0) {
+            throw new \Exception(__("Aucun moyen de notifier les utilisateurs. Ajouter la template d'email associé à l'évènement ryshop_transfer_payment"), 500);
+        }
+        
+        foreach($templates as $template) {
+            Mail::send(new PaymentMail($template, $data));
+        }
+    }
+    
+    public function post_order() {
         $me = app("affiliation")->getLogged();
         $carts = app("affiliation")->cart();
         $cart = $carts['mp'];
-        $ar = $cart->nsetup;
-        $errors = [];
         $site = app("centrale")->getSite();
+        $invoices = $this->cartToInvoices($cart, $me);
+        foreach($invoices as $invoice) {
+            InvoiceMailing::dispatchNow($invoice, $me, $site->id);
+        }
+        app("affiliation")->releaseCart('mp');
+        return redirect(__('/marketplace/orders?cart_id=:cart_id', ['cart_id' => $cart->id]))->with('message', [
+            'content' => __("Votre commande a été enregistré avec succès. Nous allons vous recontacter pour le mode de règlement de votre facture."),
+            'class' => 'alert-success'
+        ]);
+    }
+        
+    public function cartToInvoices($cart, $me) {
+        $ar = $cart->nsetup;
+        $affiliate_id = $cart->customer->facturable_id;
         $invoices = new Collection();
         if(isset($ar['shop'])) {
             OrderItem::unguard();
             foreach($ar['shop'] as $shop_id => $_shop) {
                 if(isset($_shop['underorder']))
                     continue;
-                
+                    
                 $shop = Shop::find($shop_id);
                 $supplier = $shop->owner;
-                $order = Order::whereBuyerType(Affiliate::class)->whereBuyerId($me->affiliation->id)
+                $order = Order::whereBuyerType(Affiliate::class)->whereBuyerId($affiliate_id)
                 ->whereSellerType(Supplier::class)->whereSellerId($supplier->id)->whereCartId($cart->id)
                 ->whereShopId($shop->id)->first();
                 if(!$order) {
                     $order = new Order();
                     $order->buyer_type = Affiliate::class;
-                    $order->buyer_id = $me->affiliation->id;
+                    $order->buyer_id = $affiliate_id;
                     $order->seller_type = Supplier::class;
                     $order->seller_id = $supplier->id;
                     $order->cart_id = $cart->id;
@@ -503,30 +628,21 @@ class AffiliateController extends Controller
                 
                 $invoice = $order->invoices()
                 ->whereBuyerType(Affiliate::class)
-                ->whereBuyerId($me->affiliation->id)
+                ->whereBuyerId($affiliate_id)
                 ->whereSellerType(Supplier::class)
                 ->whereSellerId($supplier->id)->first();
-                $is_new_invoice = false;
                 if(!$invoice) {
                     $invoice = new OrderInvoice();
                     $invoice->order_id = $order->id;
                     $invoice->buyer_type = Affiliate::class;
-                    $invoice->buyer_id = $me->affiliation->id;
+                    $invoice->buyer_id = $affiliate_id;
                     $invoice->seller_type = Supplier::class;
                     $invoice->seller_id = $supplier->id;
-                    $is_new_invoice = true;
                 }
                 $invoice->quantity = 1;
                 $invoice->setup = $order->setup;
                 $invoice->total_price = $order->nsetup['total_ttc'];
                 $invoice->save();
-                
-                if($is_new_invoice) {
-                    $invoice_setup = $order->nsetup;
-                    $invoice_setup['serial'] = 'MP' . $invoice->created_at->format('Y') . '-' . $invoice->id;
-                    $invoice->nsetup = $invoice_setup;
-                    $invoice->save();
-                }
                 
                 if(!$invoices->contains('id', '=', $invoice->id)) {
                     $invoices->push($invoice);
@@ -559,22 +675,7 @@ class AffiliateController extends Controller
             OrderItem::reguard();
         }
         
-        if(count($errors)>0) {
-            return redirect(__('/cart').'?source=mp')->with('message', [
-                'content' => implode('<br/>', $errors),
-                'class' => 'alert-warning'
-            ]);
-        }
-        
-        foreach($invoices as $invoice) {
-            InvoiceMailing::dispatchNow($invoice, $me, $site->id);
-        }
-        
-        app("affiliation")->releaseCart('mp');
-        return redirect(__('/marketplace/orders?cart_id=:cart_id', ['cart_id' => $cart->id]))->with('message', [
-            'content' => __("Votre commande a été enregistré avec succès. Nous allons vous recontacter pour le mode de règlement de votre facture."),
-            'class' => 'alert-success'
-        ]);
+        return $invoices;
     }
     
     public function get_invoices(Request $request) {

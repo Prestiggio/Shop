@@ -46,8 +46,12 @@ class Order extends Model
     
     public static function subtotal($year) {
         if(!isset(self::$subtotals[$year])) {
-            $_order = static::where(DB::raw("YEAR(ry_shop_orders.created_at)"), "=", $year)
-            ->selectRaw("SUM(JSON_EXTRACT(ry_shop_orders.setup, '$.subtotal')) AS sum_subtotal")->first();
+            $_order = static::join('ry_shop_order_items', 'ry_shop_order_items.order_id', '=', 'ry_shop_orders.id')->where(DB::raw("YEAR(ry_shop_orders.created_at)"), "=", $year)
+            ->selectRaw("SUM(ry_shop_order_items.price) AS sum_subtotal")->where(function($q){
+                $q->orWhere('ry_shop_orders.setup->type', 'opnegocies')
+                ->orWhere('ry_shop_orders.setup->type', 'opportunites')
+                ->orWhere('ry_shop_orders.setup->type', 'marketplace');
+            })->first();
             if($_order)
                 self::$subtotals[$year] = $_order;
             else
