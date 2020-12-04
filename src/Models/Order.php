@@ -7,6 +7,9 @@ use Ry\Admin\Models\Traits\HasJsonSetup;
 use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 use Mpdf\Mpdf;
+use Illuminate\Support\Facades\Cache;
+use Ry\Affiliate\Models\Affiliate;
+use Ry\Centrale\Models\Site;
 
 class Order extends Model
 {
@@ -45,30 +48,19 @@ class Order extends Model
     }
     
     public static function subtotal($year) {
-        if(!isset(self::$subtotals[$year])) {
-            $_order = static::join('ry_shop_order_items', 'ry_shop_order_items.order_id', '=', 'ry_shop_orders.id')->where(DB::raw("YEAR(ry_shop_orders.created_at)"), "=", $year)
-            ->selectRaw("SUM(ry_shop_order_items.price) AS sum_subtotal")->where(function($q){
-                $q->orWhere('ry_shop_orders.setup->type', 'opnegocies')
-                ->orWhere('ry_shop_orders.setup->type', 'opportunites')
-                ->orWhere('ry_shop_orders.setup->type', 'marketplace');
-            })->first();
-            if($_order)
-                self::$subtotals[$year] = $_order;
-            else
-                self::$subtotals[$year] = (object)['sum_subtotal' => 0];
-        }
-        return self::$subtotals[$year];
+        $site = app("centrale")->getSite();
+        $stats = Cache::tags('stats')->get('manager'.$site->id);
+        return isset($stats['period_categories'][$year]['sum_supplier_amount']) ? $stats['period_categories'][$year]['sum_supplier_amount'] : 0;
     }
     
     public static function prettySubtotal($year) {
         $subtotal = self::subtotal($year);
-        return app("centrale")->prettyCurrency($subtotal->sum_subtotal);
+        return app("centrale")->prettyCurrency($subtotal);
     }
     
     public static function quantityByMonth($year) {
-        $results = static::groupBy(DB::raw("MONTH(ry_shop_orders.created_at)"))
-            ->where(DB::raw("YEAR(ry_shop_orders.created_at)"), "=", $year)
-            ->selectRaw("COUNT(*) AS quantity, MONTH(ry_shop_orders.created_at) as month")->get();
+        $site = app("centrale")->getSite();
+        $stats = Cache::tags('stats')->get('manager'.$site->id);
         $ar = [];
         for($i=0; $i<12; $i++) {
             $ar[$i] = [
@@ -76,16 +68,17 @@ class Order extends Model
                 'quantity' => 0
             ];
         }
-        foreach($results as $result) {
-            $ar[$result->month-1] = $result;
+        if(isset($stats['period_categories'][$year]['children'])) {
+            foreach($stats['period_categories'][$year]['children'] as $month => $result) {
+                $ar[$month-1]['quantity'] = $result['n'];
+            }
         }
         return $ar;
     }
     
     public static function subtotalByMonth($year) {
-        $results = static::groupBy(DB::raw("MONTH(ry_shop_orders.created_at)"))
-        ->where(DB::raw("YEAR(ry_shop_orders.created_at)"), "=", $year)
-        ->selectRaw("SUM(JSON_EXTRACT(ry_shop_orders.setup, '$.subtotal')) AS quantity, MONTH(ry_shop_orders.created_at) as month")->get();
+        $site = app("centrale")->getSite();
+        $stats = Cache::tags('stats')->get('manager'.$site->id);
         $ar = [];
         for($i=0; $i<12; $i++) {
             $ar[$i] = [
@@ -93,51 +86,58 @@ class Order extends Model
                 'quantity' => 0
             ];
         }
-        foreach($results as $j => $result) {
-            $ar[$j] = $result;
+        if(isset($stats['period_categories'][$year]['children'])) {
+            foreach($stats['period_categories'][$year]['children'] as $month => $result) {
+                $ar[$month-1]['quantity'] = $result['sum_supplier_amount'];
+            }
         }
         return $ar;
     }
     
     public static function quantityOfYear($year) {
-        return static::where(DB::raw("YEAR(ry_shop_orders.created_at)"), "=", $year)->count();
+        $site = app("centrale")->getSite();
+        $stats = Cache::tags('stats')->get('manager'.$site->id);
+        if(isset($stats['period_categories'][$year]['n']))
+            return $stats['period_categories'][$year]['n'];
+        return 0;
     }
     
     public static function prettyTotalMonth($year) {
         $total = 0;
-        $_order = static::where(DB::raw("YEAR(ry_shop_orders.created_at)"), "=", $year)->where(DB::raw("MONTH(ry_shop_orders.created_at)"), "=", DB::raw("MONTH(CURRENT_DATE())"))->selectRaw("SUM(JSON_EXTRACT(ry_shop_orders.setup, '$.subtotal')) AS sum_subtotal")->first();
-        if($_order) {
-            $total = $_order->sum_subtotal;
+        $site = app("centrale")->getSite();
+        $stats = Cache::tags('stats')->get('manager'.$site->id);
+        $month = Carbon::now()->month;
+        if(isset($stats['period_categories'][$year]['children'][$month])) {
+            $total = $stats['period_categories'][$year]['children'][$month]['sum_supplier_amount'];
         }
         return app("centrale")->prettyCurrency($total);
     }
     
     public static function subtotalByDay($year) {
-        $rows = static::where(DB::raw("YEAR(ry_shop_orders.created_at)"), "=", $year)->where(DB::raw("MONTH(ry_shop_orders.created_at)"), "=", DB::raw("MONTH(CURRENT_DATE())"))
-        ->groupBy(DB::raw("DATE(ry_shop_orders.created_at)"))
-        ->orderBy("ry_shop_orders.created_at")
-        ->selectRaw("SUM(JSON_EXTRACT(ry_shop_orders.setup, '$.subtotal')) AS quantity, DATE(ry_shop_orders.created_at) AS month")
-        ->get();
+        $site = app("centrale")->getSite();
+        $stats = Cache::tags('stats')->get('manager'.$site->id);
         $start = Carbon::now()->year($year)->startOfMonth();
         $end = Carbon::now()->year($year)->endOfMonth();
         $ar = [];
-        $dates = [];
-        foreach($rows as $row) {
-            $dates[$row->month] = $row->quantity;
-        }
         while($start->lte($end)) {
-            $ar[] = [
-                "quantity" => isset($dates[$start->format("Y-m-d")]) ? $dates[$start->format("Y-m-d")] : 0,
+            $ar[$start->format("Y-m-d")] = [
+                "quantity" => 0,
                 "month" => $start->format("Y-m-d")
             ];
             $start->addDay();
         }
-        return $ar;
+        if(isset($stats['period_categories'][$year]['children'][Carbon::now()->month]['children'])) {
+            $rows = $stats['period_categories'][$year]['children'][Carbon::now()->month]['children'];
+            foreach($rows as $day => $row) {
+                $ar[Carbon::now()->day($day)->format('Y-m-d')]['quantity'] = $row['sum_supplier_amount'];
+            }
+        }
+        return array_values($ar);
     }
     
     public static function prettyTurnover($year) {
         $total = static::subtotal($year);
-        return app("centrale")->prettyCurrency($total->sum_subtotal);
+        return app("centrale")->prettyCurrency($total);
     }
     
     public function pdf($mode = 'D') {
