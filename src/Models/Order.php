@@ -47,9 +47,22 @@ class Order extends Model
     	return $this->hasMany("Ry\Shop\Models\OrderInvoice", "order_id");
     }
     
-    public static function subtotal($year) {
+    private static function getCache() {
         $site = app("centrale")->getSite();
-        $stats = Cache::tags('stats')->get('manager'.$site->id);
+        if(Cache::tags('stats')->has('manager'.$site->id))
+            $stats = Cache::tags('stats')->get('manager'.$site->id);
+        else
+            $stats = [
+                "period_categories" => [],
+                "affiliate_amounts" => [],
+                "supplier_amounts" => [],
+                "opportunites" => []
+            ];
+        return $stats;
+    }
+    
+    public static function subtotal($year) {
+        $stats = static::getCache();
         return isset($stats['period_categories'][$year]['sum_supplier_amount']) ? $stats['period_categories'][$year]['sum_supplier_amount'] : 0;
     }
     
@@ -59,8 +72,7 @@ class Order extends Model
     }
     
     public static function quantityByMonth($year) {
-        $site = app("centrale")->getSite();
-        $stats = Cache::tags('stats')->get('manager'.$site->id);
+        $stats = $stats = static::getCache();
         $ar = [];
         for($i=0; $i<12; $i++) {
             $ar[$i] = [
@@ -77,8 +89,7 @@ class Order extends Model
     }
     
     public static function subtotalByMonth($year) {
-        $site = app("centrale")->getSite();
-        $stats = Cache::tags('stats')->get('manager'.$site->id);
+        $stats = static::getCache();
         $ar = [];
         for($i=0; $i<12; $i++) {
             $ar[$i] = [
@@ -95,8 +106,7 @@ class Order extends Model
     }
     
     public static function quantityOfYear($year) {
-        $site = app("centrale")->getSite();
-        $stats = Cache::tags('stats')->get('manager'.$site->id);
+        $stats = $stats = static::getCache();
         if(isset($stats['period_categories'][$year]['n']))
             return $stats['period_categories'][$year]['n'];
         return 0;
@@ -104,8 +114,7 @@ class Order extends Model
     
     public static function prettyTotalMonth($year) {
         $total = 0;
-        $site = app("centrale")->getSite();
-        $stats = Cache::tags('stats')->get('manager'.$site->id);
+        $stats = static::getCache();
         $month = Carbon::now()->month;
         if(isset($stats['period_categories'][$year]['children'][$month])) {
             $total = $stats['period_categories'][$year]['children'][$month]['sum_supplier_amount'];
@@ -114,8 +123,7 @@ class Order extends Model
     }
     
     public static function subtotalByDay($year) {
-        $site = app("centrale")->getSite();
-        $stats = Cache::tags('stats')->get('manager'.$site->id);
+        $stats = static::getCache();
         $start = Carbon::now()->year($year)->startOfMonth();
         $end = Carbon::now()->year($year)->endOfMonth();
         $ar = [];
