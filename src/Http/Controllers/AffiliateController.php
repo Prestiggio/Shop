@@ -452,8 +452,22 @@ class AffiliateController extends Controller
         $amount = 0;
         $cart = Cart::with(['items.sellable.product.medias', 'customer.facturable.warehouses.users'])->find($request->get('cart_id'));
         $cart_setup = $cart->nsetup;
-        if(isset($cart_setup['transaction_code']) && !Payment::where('setup->vads_trans_id', $cart_setup['transaction_code'])->exists()) {
-            unset($cart_setup['transaction_code']);
+        
+        if(isset($cart_setup['transaction_code'])) {
+            $systempay = Payment::where('setup->vads_trans_id', $cart_setup['transaction_code'])->first();
+            $paypal = Payment::where('setup->transaction_code', $cart_setup['transaction_code'])->first();
+            if($systempay) {
+                $systempay->setAttribute('mode', __('carte bancaire'));
+                $cart->setAttribute('paid', $systempay);
+            }
+            elseif($paypal) {
+                $paypal->setAttribute('mode', 'Paypal');
+                $cart->setAttribute('paid', $paypal);
+            }
+            else {
+                if(!isset($cart_setup['transfer_requested']))
+                    unset($cart_setup['transaction_code']);
+            }
         }
         if(!isset($cart_setup['transaction_code'])) {
             $transaction_code = Str::random(6);
@@ -502,7 +516,7 @@ class AffiliateController extends Controller
             "data" => $cart,
             "transaction_code" => $transaction_code,
             "payment" => [
-                "data" => app("payment")->paymentForm($amount, $transaction_code, app("centrale")->buildBuyerUrl(__('/marketplace/orders?cart_id=:cart_id', ['cart_id' => $request->get('cart_id')])))
+                "data" => app("payment")->paymentForm($amount, $transaction_code, app("centrale")->buildBuyerUrl(__('/marketplace/payment?cart_id=:cart_id', ['cart_id' => $request->get('cart_id')])))
             ],
             "currency" => app("centrale")->getCurrency(),
             "page" => [
@@ -522,6 +536,11 @@ class AffiliateController extends Controller
             $carrier_rate->append('nsetup');
         });
         $cart = Cart::with(['items.sellable.product.medias', 'customer.facturable.warehouses.users'])->find($request->get('id'));
+        $cart->recyclable = 0;
+        $cart_setup = $cart->nsetup;
+        $cart_setup['transfer_requested'] = true;
+        $cart->nsetup = $cart_setup;
+        $cart->save();
         $carriers = [];
         $cart->items->map(function($item)use(&$carriers, $cart){
             $item->append('nsetup');
@@ -549,7 +568,6 @@ class AffiliateController extends Controller
         
         if(app("payment")->isExpress())
             $this->cartToInvoices($cart, $me);
-        
         $author = User::with(['profile'])->find($cart->nsetup['author_id']);
         $data = [
             'author' => $author,

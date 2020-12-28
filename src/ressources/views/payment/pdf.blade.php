@@ -183,6 +183,10 @@
 <table class="table table-bordered my-4">
 	<tbody>
 		<tr>
+			<th colspan="4">@lang("Code de rapprochement bancaire")</th>
+			<td class="bg-theme2">{{$data->nsetup['transaction_code']}}</td>
+		</tr>
+		<tr>
 			<th class="text-uppercase" colspan="4">@lang("Relevé d'identité bancaire")</th>
 			<th>@lang("Titulaire du compte")</th>
 		</tr>
