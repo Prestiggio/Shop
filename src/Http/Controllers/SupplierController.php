@@ -69,7 +69,7 @@ class SupplierController extends Controller
     
     public function get_order(Request $request) {
         $me = app("pim.supplier")->getLogged();
-        $order = Order::with(['items.sellable.product.medias', 'buyer', 'cart.deliveryAddress.ville.country', 'cart.billingAddress.ville.country'])->whereSellerType(Supplier::class)
+        $order = Order::with(['items.sellable.product.medias', 'buyer.mainUser.profile', 'buyer.mainUser.contacts', 'cart.deliveryAddress.ville.country', 'cart.billingAddress.ville.country'])->whereSellerType(Supplier::class)
         ->whereSellerId($me->supplying->supplier_id)
         ->where('ry_shop_orders.setup->type', 'marketplace')->find($request->get('id'));
         $order->append('nsetup');
