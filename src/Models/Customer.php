@@ -8,6 +8,7 @@ use Ry\Analytics\Models\Traits\LinkableTrait;
 use Ry\Admin\Models\Traits\HasJsonSetup;
 use App\User;
 use Ry\Shop\Models\Traits\HasBankAccounts;
+use Illuminate\Support\Str;
 
 class Customer extends Model
 {
@@ -73,6 +74,6 @@ class Customer extends Model
     	if($this->slugs()->exists())
     		return $this->slugs->slug;
     	
-    	return str_random(16);
+    	return Str::random(16);
     }
 }
